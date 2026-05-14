@@ -27,7 +27,13 @@ const DICHTBIJ_UREN = 3            // uren: binnen deze grens tonen we mm + duur
 // ===============================
 // FILE SYSTEM
 // ===============================
-const fm = FileManager.iCloud()
+let fm
+try {
+  fm = FileManager.iCloud()
+} catch (e) {
+  fm = FileManager.local()
+}
+
 const cachePath = fm.joinPath(fm.documentsDirectory(), CACHE_FILE)
 
 // ===============================
