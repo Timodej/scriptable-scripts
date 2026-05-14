@@ -13,7 +13,6 @@ const DEFAULT_FONT_SIZE = 10
 const DEFAULT_DAYS_AHEAD = 7
 const DEFAULT_SHOW_END_TIME = false
 const SETTINGS_FILE = "Lockscreen-upcoming-left-settings.json"
-const SHARED_SETTINGS_FILE = "calendarWidgetSettings.json"
 const SHOWN_FILE = "calendarWidgetShown.json"
 const LANG_FILE = "timoLanguage-upcoming.json"
 
@@ -33,29 +32,30 @@ try {
   fm = FileManager.local()
 }
 const settingsPath = fm.joinPath(fm.documentsDirectory(), SETTINGS_FILE)
-const sharedSettingsPath = fm.joinPath(fm.documentsDirectory(), SHARED_SETTINGS_FILE)
 const shownPath = fm.joinPath(fm.documentsDirectory(), SHOWN_FILE)
 const langPath = fm.joinPath(fm.documentsDirectory(), LANG_FILE)
 
 // ===============================
 // TAAL LADEN
 // ===============================
-let lang = loadLang()
+const lang = loadLang()
 
 // ===============================
 // LOAD SETTINGS
 // ===============================
-let settings = loadSettings()
-let shouldPreview = false
+const settings = loadSettings()
 
 // ===============================
-// SETTINGS MENU
+// APP OPENEN / PREVIEW
 // ===============================
+let shouldPreview = false
+
 if (config.runsInApp) {
   if (ACTION === "open") {
+    const scheme = settings.openApp ?? "x-apple-reminderkit"
     const appleDate = new Date("2001/01/01")
     const timestamp = (new Date().getTime() - appleDate.getTime()) / 1e3
-    const callback = new CallbackURL("x-apple-reminderkit://" + timestamp)
+    const callback = new CallbackURL(`${scheme}://` + timestamp)
     callback.open()
     Script.complete()
     return
@@ -66,30 +66,16 @@ if (config.runsInApp) {
   }
 }
 
-// ===============================
-// STOP IF NOT WIDGET + NO PREVIEW
-// ===============================
 if (!config.runsInWidget && !config.runsInAccessoryWidget && !shouldPreview) {
   Script.complete()
   return
 }
 
 // ===============================
-// CAL SAVE (legacy support)
-// ===============================
-if (!settings.calendars.length && config.runsInApp) {
-  settings.calendars = await pickCalendars()
-  saveSettings(settings)
-}
-
-// ===============================
 // DISPLAY VALUES
 // ===============================
 const MAX_ITEMS = settings.listItems ?? DEFAULT_LIST_ITEMS
-const FONT_SIZE = settings.linkFontToList
-  ? (MAX_ITEMS === 6 ? 10 : 11)
-  : (settings.fontSize ?? DEFAULT_FONT_SIZE)
-
+const FONT_SIZE = settings.fontSize ?? DEFAULT_FONT_SIZE
 const DAYS_AHEAD = settings.daysAhead ?? DEFAULT_DAYS_AHEAD
 const SHOW_END_TIME = settings.showEndTime ?? DEFAULT_SHOW_END_TIME
 
@@ -101,27 +87,22 @@ const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 const startTime = now
 const tomorrow = new Date(startOfToday)
 tomorrow.setDate(tomorrow.getDate() + 1)
-
 const endDate = new Date(startOfToday)
 endDate.setDate(endDate.getDate() + DAYS_AHEAD)
 
 // ===============================
 // CALENDAR EVENTS
 // ===============================
-let calendars = (await Calendar.forEvents())
-  .filter(c => settings.calendars.includes(c.title))
-
+const kalenders = settings.calendars ?? []
+let calendars = (await Calendar.forEvents()).filter(c => kalenders.includes(c.title))
 let calendarEvents = []
 
-if (settings.calendars.length) {
+if (kalenders.length) {
   calendarEvents = (await CalendarEvent.between(startTime, endDate, calendars))
     .filter(e => e.endDate >= now)
     .map(e => ({
-      title: e.title,
-      date: e.startDate,
-      endDate: e.endDate,
-      isAllDay: e.isAllDay,
-      type: "event"
+      title: e.title, date: e.startDate, endDate: e.endDate,
+      isAllDay: e.isAllDay, type: "event"
     }))
 }
 
@@ -137,10 +118,8 @@ for (let r of reminders) {
     undated.push({ title: r.title, type: "undated" })
   } else if (r.dueDate >= startTime && r.dueDate <= endDate) {
     dated.push({
-      title: r.title,
-      date: r.dueDate,
-      isAllDay: !r.dueDateIncludesTime,
-      type: "reminder"
+      title: r.title, date: r.dueDate,
+      isAllDay: !r.dueDateIncludesTime, type: "reminder"
     })
   }
 }
@@ -151,10 +130,8 @@ for (let r of reminders) {
 let reminderItems = [...undated, ...dated]
 let reminderCount = Math.min(reminderItems.length, MAX_ITEMS)
 let remainingSlots = MAX_ITEMS - reminderCount
-
 let eventItems = calendarEvents.slice(0, remainingSlots)
 let shownEventCount = eventItems.length
-
 let items = [...reminderItems.slice(0, reminderCount), ...eventItems]
 
 fm.writeString(shownPath, JSON.stringify({ shownEventCount }))
@@ -165,27 +142,19 @@ fm.writeString(shownPath, JSON.stringify({ shownEventCount }))
 let widget = new ListWidget()
 widget.setPadding(6, 6, 6, 6)
 
-if (!settings.calendars.length) {
-
+if (!kalenders.length) {
   let t = widget.addText(lang.noCalendarsSelected)
   t.font = Font.systemFont(FONT_SIZE)
   t.textColor = Color.gray()
-
 } else {
-
   for (let item of items) {
-
     if (item.type === "undated" || item.type === "reminder") {
       let row = widget.addStack()
       row.spacing = 6
-
       if (item.type === "reminder" && item.date) {
         let isToday = isSameDay(item.date, startOfToday)
         let isTomorrow = isSameDay(item.date, tomorrow)
-        let label =
-          isToday ? lang.today :
-          isTomorrow ? lang.tomorrow :
-          formatDate(item.date)
+        let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDate(item.date)
         let d = row.addText(label)
         d.font = Font.systemFont(FONT_SIZE)
         d.textColor = Color.white()
@@ -205,24 +174,16 @@ if (!settings.calendars.length) {
     let isToday = isSameDay(item.date, startOfToday)
     let isTomorrow = isSameDay(item.date, tomorrow)
     let color = isToday ? Color.white() : Color.gray()
-
     let row = widget.addStack()
     row.spacing = 6
-
-    let label =
-      isToday ? lang.today :
-      isTomorrow ? lang.tomorrow :
-      formatDate(item.date)
-
+    let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDate(item.date)
     let d = row.addText(label)
     d.font = Font.systemFont(FONT_SIZE)
     d.textColor = color
 
     if (!item.isAllDay && (isToday || isTomorrow)) {
       let timeString = formatTime(item.date)
-      if (SHOW_END_TIME && item.endDate) {
-        timeString += "–" + formatTime(item.endDate)
-      }
+      if (SHOW_END_TIME && item.endDate) timeString += "–" + formatTime(item.endDate)
       let t = row.addText(" " + timeString)
       t.font = Font.systemFont(FONT_SIZE)
       t.textColor = color
@@ -243,11 +204,10 @@ if (config.runsInWidget || config.runsInAccessoryWidget) {
 } else {
   await widget.presentSmall()
 }
-
 Script.complete()
 
 // ===============================
-// TAAL FUNCTIES
+// FUNCTIES
 // ===============================
 function loadLang() {
   const fallback = {
@@ -259,56 +219,19 @@ function loadLang() {
     days: ["Zo","Ma","Di","Wo","Do","Vr","Za"]
   }
   if (!fm.fileExists(langPath)) return fallback
-  try {
-    return Object.assign(fallback, JSON.parse(fm.readString(langPath)))
-  } catch {
-    return fallback
-  }
-}
-
-// ===============================
-// SETTINGS FUNCTIONS
-// ===============================
-function defaultSettings() {
-  return {
-    calendars: [],
-    listItems: DEFAULT_LIST_ITEMS,
-    linkFontToList: true,
-    fontSize: DEFAULT_FONT_SIZE,
-    daysAhead: DEFAULT_DAYS_AHEAD,
-    showEndTime: DEFAULT_SHOW_END_TIME
-  }
+  try { return Object.assign(fallback, JSON.parse(fm.readString(langPath))) } catch { return fallback }
 }
 
 function loadSettings() {
-  // Probeer eerst het nieuwe eigen instellingenbestand
-  if (fm.fileExists(settingsPath)) {
-    try {
-      return Object.assign(defaultSettings(), JSON.parse(fm.readString(settingsPath)))
-    } catch {}
+  const defaults = {
+    calendars: [], listItems: DEFAULT_LIST_ITEMS,
+    fontSize: DEFAULT_FONT_SIZE, daysAhead: DEFAULT_DAYS_AHEAD,
+    showEndTime: DEFAULT_SHOW_END_TIME, openApp: "x-apple-reminderkit"
   }
-  // Fallback naar het oude gedeelde bestand
-  if (fm.fileExists(sharedSettingsPath)) {
-    try {
-      return Object.assign(defaultSettings(), JSON.parse(fm.readString(sharedSettingsPath)))
-    } catch {}
-  }
-  return defaultSettings()
+  if (!fm.fileExists(settingsPath)) return defaults
+  try { return Object.assign(defaults, JSON.parse(fm.readString(settingsPath))) } catch { return defaults }
 }
 
-function saveSettings(s) {
-  fm.writeString(settingsPath, JSON.stringify(s))
-}
-
-async function pickCalendars() {
-  if (!config.runsInApp) return settings.calendars ?? []
-  let picked = await Calendar.presentPicker(true)
-  return picked.map(c => c.title)
-}
-
-// ===============================
-// UTILITIES
-// ===============================
 function isSameDay(a, b) {
   return a.getFullYear() === b.getFullYear()
     && a.getMonth() === b.getMonth()
