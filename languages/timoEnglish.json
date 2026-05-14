@@ -8,7 +8,6 @@
   "dryFrom": "🌂",
   "noRainExpected": "dry",
   "rainAllDay": "🌧️🌧️",
-  "rainComingHours": "☔️",
   "until": "until",
   "months": ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"],
   "days": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
@@ -33,5 +32,15 @@
   "done": "Done!",
   "info": "Info",
   "refresh": "Refreshing...",
-  "scriptsAvailable": "scripts available"
+  "scriptsAvailable": "scripts available",
+  "settings": "Settings",
+  "language": "Language",
+  "languageName": "English",
+  "showEndTime": "Show end time",
+  "daysAhead": "Days ahead",
+  "selectCalendars": "Select calendars",
+  "on": "On",
+  "off": "Off",
+  "save": "Save",
+  "settingsFor": "Settings for"
 }
