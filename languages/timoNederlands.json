@@ -1,4 +1,4 @@
-
+{
   "today": "Vandaag",
   "tomorrow": "Morgen",
   "noCalendarsSelected": "Geen agenda's geselecteerd",
@@ -8,7 +8,6 @@
   "dryFrom": "🌂",
   "noRainExpected": "droog",
   "rainAllDay": "🌧️🌧️",
-  "rainComingHours": "☔️",
   "until": "tot",
   "months": ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"],
   "days": ["Zo", "Ma", "Di", "Wo", "Do", "Vr", "Za"],
@@ -33,5 +32,15 @@
   "done": "Klaar!",
   "info": "Info",
   "refresh": "Verversen...",
-  "scriptsAvailable": "scripts beschikbaar"
+  "scriptsAvailable": "scripts beschikbaar",
+  "settings": "Instellingen",
+  "language": "Taal",
+  "languageName": "Nederlands",
+  "showEndTime": "Eindtijd tonen",
+  "daysAhead": "Dagen vooruit",
+  "selectCalendars": "Kalenders selecteren",
+  "on": "Aan",
+  "off": "Uit",
+  "save": "Opslaan",
+  "settingsFor": "Instellingen voor"
 }
