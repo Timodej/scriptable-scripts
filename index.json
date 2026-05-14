@@ -20,7 +20,7 @@
           "key": "openApp",
           "type": "app",
           "section": "Gedrag",
-          "label": "App bij tikken",
+          "label": "labelOpenApp",
           "apps": [
             { "label": "Weeronline", "scheme": "weeronline" },
             { "label": "Buienradar", "scheme": "buienradar" },
@@ -30,19 +30,22 @@
           "default": "weeronline"
         },
         {
-          "key": "fontSize",
-          "type": "number",
-          "section": "Weergave",
-          "label": "Lettergrootte",
-          "default": 10,
-          "min": 8,
-          "max": 16
+          "key": "rainApi",
+          "type": "choice",
+          "section": "Regen",
+          "label": "labelRainApi",
+          "choices": [
+            { "label": "Open-Meteo 🌍", "value": "openmeteo" },
+            { "label": "Buienradar 🇳🇱", "value": "buienradar" },
+            { "label": "Combinatie 🔀", "value": "combined" }
+          ],
+          "default": "openmeteo"
         },
         {
           "key": "regenDrempelKans",
           "type": "number",
           "section": "Regen",
-          "label": "Regendrempel kans (%)",
+          "label": "labelRegenDrempelKans",
           "default": 70,
           "min": 10,
           "max": 100
@@ -51,24 +54,33 @@
           "key": "regenDrempelMm",
           "type": "decimal",
           "section": "Regen",
-          "label": "Regendrempel (mm/uur)",
+          "label": "labelRegenDrempelMm",
           "default": 0.2
         },
         {
           "key": "regenMinimumMm",
           "type": "decimal",
           "section": "Regen",
-          "label": "Minimum bui (mm totaal)",
+          "label": "labelRegenMinimumMm",
           "default": 0.5
         },
         {
           "key": "dichtbijUren",
           "type": "number",
           "section": "Regen",
-          "label": "Dichtbij (uren)",
+          "label": "labelDichtbijUren",
           "default": 3,
           "min": 1,
           "max": 12
+        },
+        {
+          "key": "fontSize",
+          "type": "number",
+          "section": "Weergave",
+          "label": "labelFontSize",
+          "default": 10,
+          "min": 8,
+          "max": 16
         }
       ]
     },
@@ -89,7 +101,7 @@
           "key": "openApp",
           "type": "app",
           "section": "Gedrag",
-          "label": "App bij tikken",
+          "label": "labelOpenApp",
           "apps": [
             { "label": "Reminders", "scheme": "x-apple-reminderkit" },
             { "label": "WeekCal", "scheme": "weekcal" },
@@ -103,13 +115,13 @@
           "key": "calendars",
           "type": "calendars",
           "section": "Agenda",
-          "label": "Kalenders"
+          "label": "labelCalendars"
         },
         {
           "key": "daysAhead",
           "type": "number",
           "section": "Agenda",
-          "label": "Dagen vooruit",
+          "label": "labelDaysAhead",
           "default": 7,
           "min": 1,
           "max": 30
@@ -118,7 +130,7 @@
           "key": "listItems",
           "type": "number",
           "section": "Weergave",
-          "label": "Max. items",
+          "label": "labelListItems",
           "default": 6,
           "min": 1,
           "max": 10
@@ -127,7 +139,7 @@
           "key": "fontSize",
           "type": "number",
           "section": "Weergave",
-          "label": "Lettergrootte",
+          "label": "labelFontSize",
           "default": 10,
           "min": 8,
           "max": 16
@@ -136,7 +148,7 @@
           "key": "showEndTime",
           "type": "boolean",
           "section": "Weergave",
-          "label": "Eindtijd tonen",
+          "label": "labelShowEndTime",
           "default": false
         }
       ]
@@ -158,7 +170,7 @@
           "key": "openApp",
           "type": "app",
           "section": "Gedrag",
-          "label": "App bij tikken",
+          "label": "labelOpenApp",
           "apps": [
             { "label": "WeekCal", "scheme": "weekcal" },
             { "label": "Fantastical", "scheme": "fantastical2" },
@@ -172,13 +184,13 @@
           "key": "calendars",
           "type": "calendars",
           "section": "Agenda",
-          "label": "Kalenders"
+          "label": "labelCalendars"
         },
         {
           "key": "daysAhead",
           "type": "number",
           "section": "Agenda",
-          "label": "Dagen vooruit",
+          "label": "labelDaysAhead",
           "default": 7,
           "min": 1,
           "max": 30
@@ -187,7 +199,7 @@
           "key": "listItems",
           "type": "number",
           "section": "Weergave",
-          "label": "Max. items",
+          "label": "labelListItems",
           "default": 6,
           "min": 1,
           "max": 10
@@ -196,7 +208,7 @@
           "key": "fontSize",
           "type": "number",
           "section": "Weergave",
-          "label": "Lettergrootte",
+          "label": "labelFontSize",
           "default": 10,
           "min": 8,
           "max": 16
@@ -205,7 +217,7 @@
           "key": "showEndTime",
           "type": "boolean",
           "section": "Weergave",
-          "label": "Eindtijd tonen",
+          "label": "labelShowEndTime",
           "default": false
         }
       ]
