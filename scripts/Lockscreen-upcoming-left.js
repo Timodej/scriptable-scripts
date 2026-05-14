@@ -20,7 +20,7 @@ const LANG_FILE = "timoLanguage-upcoming.json"
 // PARAMETERS
 // ===============================
 const params = args.widgetParameter ? JSON.parse(args.widgetParameter) : {}
-const ACTION = params.action ?? "default"
+const ACTION = params.action ?? "open"
 
 // ===============================
 // FILE SYSTEM
