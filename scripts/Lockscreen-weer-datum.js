@@ -32,19 +32,17 @@ const langPath = fm.joinPath(fm.documentsDirectory(), LANG_FILE)
 const settingsPath = fm.joinPath(fm.documentsDirectory(), SETTINGS_FILE)
 
 // ===============================
-// TAAL EN INSTELLINGEN LADEN
+// TAAL EN INSTELLINGEN
 // ===============================
 const lang = loadLang()
 const settings = loadSettings()
 
-// ===============================
-// INSTELLINGEN UIT BESTAND
-// ===============================
 const FONT_SIZE = settings.fontSize ?? 10
 const REGEN_DREMPEL_KANS = settings.regenDrempelKans ?? 70
 const REGEN_DREMPEL_MM = settings.regenDrempelMm ?? 0.2
 const REGEN_MINIMUM_MM = settings.regenMinimumMm ?? 0.5
 const DICHTBIJ_UREN = settings.dichtbijUren ?? 3
+const RAIN_API = settings.rainApi ?? "openmeteo"
 
 // ===============================
 // APP OPENEN / PREVIEW
@@ -73,16 +71,247 @@ if (!config.runsInWidget && !config.runsInAccessoryWidget && !shouldPreview) {
 }
 
 // ===============================
-// MAAND (uit taalbestand)
+// MAAND
 // ===============================
 const now = new Date()
 const maandNaam = lang.months[now.getMonth()]
 
 // ===============================
-// HULPFUNCTIE: lokaal uur-prefix
+// HULPFUNCTIES
 // ===============================
 function lokaalUurPrefix(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}`
+}
+
+function formatUur(d) {
+  const h = d.getHours()
+  const m = d.getMinutes()
+  return m === 0 ? `${h}u` : `${h}:${m.toString().padStart(2, "0")}`
+}
+
+function berekenSom(neerslag, uren, vanIndex, totTijd) {
+  let som = 0
+  for (let i = vanIndex; i < uren.length; i++) {
+    if (new Date(uren[i]) >= totTijd) break
+    som += neerslag[i]
+  }
+  return Math.round(som * 10) / 10
+}
+
+// ===============================
+// OPEN-METEO DATA OPHALEN
+// Temperatuur + weathercode + uur-voor-uur regen
+// ===============================
+async function haalOpenMeteoOp(lat, lon) {
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation,weathercode&hourly=temperature_2m,precipitation_probability,precipitation&forecast_days=2&timezone=auto`
+  const req = new Request(url)
+  return await req.loadJSON()
+}
+
+// ===============================
+// BUIENRADAR DATA OPHALEN
+// Geeft array van { tijd, mmPerUur } voor komende ~2 uur
+// per 5 minuten
+// ===============================
+async function haalBuienradarOp(lat, lon) {
+  const url = `https://gpsgadget.buienradar.nl/data/raintext?lat=${lat}&lon=${lon}`
+  const req = new Request(url)
+  const tekst = await req.loadString()
+
+  const regels = tekst.trim().split("\n")
+  const resultaat = []
+  const basisTijd = new Date()
+  basisTijd.setSeconds(0, 0)
+  // Rond af naar dichtstbijzijnde 5 minuten
+  basisTijd.setMinutes(Math.floor(basisTijd.getMinutes() / 5) * 5)
+
+  for (let i = 0; i < regels.length; i++) {
+    const delen = regels[i].split("|")
+    if (delen.length < 2) continue
+    const waarde = parseInt(delen[0])
+    // Buienradar formule: mm/uur = 10^((waarde-109)/32)
+    const mmPerUur = waarde === 0 ? 0 : Math.pow(10, (waarde - 109) / 32)
+    const tijdstip = new Date(basisTijd.getTime() + i * 5 * 60 * 1000)
+    resultaat.push({ tijdstip, mmPerUur, mmPer5min: mmPerUur / 12 })
+  }
+  return resultaat
+}
+
+// ===============================
+// REGEN ANALYSE: OPEN-METEO
+// ===============================
+function analyseOpenMeteo(json, now) {
+  const eindVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+  const uren = json.hourly.time
+  const neerslag = json.hourly.precipitation
+  const kansen = json.hourly.precipitation_probability
+  const regenNu = json.current.precipitation >= REGEN_DREMPEL_MM
+
+  const huidigUur = lokaalUurPrefix(now)
+  let startIndex = uren.findIndex(t => t.startsWith(huidigUur))
+  if (startIndex < 0) startIndex = 0
+
+  return berekenRegenBericht(regenNu, uren, neerslag, kansen, startIndex, eindVandaag, now)
+}
+
+// ===============================
+// REGEN ANALYSE: BUIENRADAR
+// Alleen komende ~2 uur, per 5 minuten
+// ===============================
+function analyseBuienradar(buienData, now) {
+  const regenNu = buienData.length > 0 && buienData[0].mmPerUur >= REGEN_DREMPEL_MM
+
+  if (regenNu) {
+    // Zoek wanneer het droog wordt
+    let droogTijdstip = null
+    let mmTotDroog = 0
+    for (const punt of buienData) {
+      if (punt.tijdstip < now) continue
+      if (punt.mmPerUur < REGEN_DREMPEL_MM) { droogTijdstip = punt.tijdstip; break }
+      mmTotDroog += punt.mmPer5min
+    }
+    mmTotDroog = Math.round(mmTotDroog * 10) / 10
+
+    if (!droogTijdstip) {
+      return `${lang.rainAllDay} ${mmTotDroog}mm`
+    }
+    return `${mmTotDroog}mm ${lang.until} ${formatUur(droogTijdstip)}`
+
+  } else {
+    // Zoek wanneer regen begint
+    let regenStart = null
+    let regenEind = null
+    let mmBui = 0
+
+    for (const punt of buienData) {
+      if (punt.tijdstip < now) continue
+      if (!regenStart && punt.mmPerUur >= REGEN_DREMPEL_MM) {
+        regenStart = punt.tijdstip
+      } else if (regenStart && !regenEind && punt.mmPerUur < REGEN_DREMPEL_MM) {
+        regenEind = punt.tijdstip
+        break
+      }
+      if (regenStart) mmBui += punt.mmPer5min
+    }
+    mmBui = Math.round(mmBui * 10) / 10
+
+    if (!regenStart) return lang.noRainExpected
+    if (mmBui < REGEN_MINIMUM_MM) return lang.noRainExpected
+
+    const urenTotRegen = (regenStart - now) / 1000 / 3600
+    const startTijd = formatUur(regenStart)
+
+    if (urenTotRegen <= DICHTBIJ_UREN) {
+      if (!regenEind) return `${lang.rainFrom}${startTijd}+ ${mmBui}mm`
+      return `${lang.rainFrom}${startTijd}-${formatUur(regenEind)} ${mmBui}mm`
+    }
+    return `${lang.rainFrom}${startTijd}`
+  }
+}
+
+// ===============================
+// REGEN ANALYSE: COMBINATIE
+// Buienradar voor komende 2 uur, daarna Open-Meteo
+// ===============================
+function analyseCombinatie(buienData, json, now) {
+  const buienHorizon = new Date(now.getTime() + 2 * 60 * 60 * 1000)
+  const regenNuBuien = buienData.length > 0 && buienData[0].mmPerUur >= REGEN_DREMPEL_MM
+
+  // Check eerst buienradar voor kortetermijn
+  const buienBericht = analyseBuienradar(buienData, now)
+
+  // Als buienradar iets interessants zegt (niet gewoon "droog"), gebruik dat
+  if (buienBericht !== lang.noRainExpected) return buienBericht
+
+  // Anders val terug op Open-Meteo voor de rest van de dag
+  const eindVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+  const uren = json.hourly.time
+  const neerslag = json.hourly.precipitation
+  const kansen = json.hourly.precipitation_probability
+
+  const huidigUur = lokaalUurPrefix(now)
+  let startIndex = uren.findIndex(t => t.startsWith(huidigUur))
+  if (startIndex < 0) startIndex = 0
+
+  // Zoek regen na de buienradar horizon
+  let regenStartIndex = -1
+  for (let i = startIndex; i < uren.length; i++) {
+    const t = new Date(uren[i])
+    if (t > eindVandaag) break
+    if (t < buienHorizon) continue // Skip wat buienradar al dekt
+    if (kansen[i] >= REGEN_DREMPEL_KANS) { regenStartIndex = i; break }
+  }
+
+  if (regenStartIndex < 0) return lang.noRainExpected
+
+  let regenEindIndex = -1
+  for (let i = regenStartIndex + 1; i < uren.length; i++) {
+    const t = new Date(uren[i])
+    if (t > eindVandaag) break
+    if (kansen[i] < REGEN_DREMPEL_KANS && neerslag[i] < REGEN_DREMPEL_MM) { regenEindIndex = i; break }
+  }
+
+  const mmBui = berekenSom(neerslag, uren, regenStartIndex,
+    regenEindIndex >= 0 ? new Date(uren[regenEindIndex]) : eindVandaag)
+  if (mmBui < REGEN_MINIMUM_MM) return lang.noRainExpected
+
+  const urenTotRegen = (new Date(uren[regenStartIndex]) - now) / 1000 / 3600
+  const startTijd = formatUur(new Date(uren[regenStartIndex]))
+
+  if (urenTotRegen <= DICHTBIJ_UREN) {
+    if (regenEindIndex < 0) return `${lang.rainFrom}${startTijd}+ ${mmBui}mm`
+    return `${lang.rainFrom}${startTijd}-${formatUur(new Date(uren[regenEindIndex]))} ${mmBui}mm`
+  }
+  return `${lang.rainFrom}${startTijd}`
+}
+
+// ===============================
+// GEDEELDE REGEN BERICHTFUNCTIE VOOR OPEN-METEO
+// ===============================
+function berekenRegenBericht(regenNu, uren, neerslag, kansen, startIndex, eindVandaag, now) {
+  if (regenNu) {
+    let droogIndex = -1
+    for (let i = startIndex + 1; i < uren.length; i++) {
+      const t = new Date(uren[i])
+      if (t > eindVandaag) break
+      if (neerslag[i] < REGEN_DREMPEL_MM && kansen[i] < REGEN_DREMPEL_KANS) { droogIndex = i; break }
+    }
+    if (droogIndex < 0) {
+      const dagsom = berekenSom(neerslag, uren, startIndex, eindVandaag)
+      return `${lang.rainAllDay} ${dagsom}mm`
+    }
+    const droogTijd = formatUur(new Date(uren[droogIndex]))
+    const mmTotDroog = berekenSom(neerslag, uren, startIndex, new Date(uren[droogIndex]))
+    return `${mmTotDroog}mm ${lang.until} ${droogTijd}`
+  } else {
+    let regenStartIndex = -1
+    for (let i = startIndex; i < uren.length; i++) {
+      const t = new Date(uren[i])
+      if (t > eindVandaag) break
+      if (kansen[i] >= REGEN_DREMPEL_KANS) { regenStartIndex = i; break }
+    }
+    if (regenStartIndex < 0) return lang.noRainExpected
+
+    let regenEindIndex = -1
+    for (let i = regenStartIndex + 1; i < uren.length; i++) {
+      const t = new Date(uren[i])
+      if (t > eindVandaag) break
+      if (kansen[i] < REGEN_DREMPEL_KANS && neerslag[i] < REGEN_DREMPEL_MM) { regenEindIndex = i; break }
+    }
+
+    const mmBui = berekenSom(neerslag, uren, regenStartIndex,
+      regenEindIndex >= 0 ? new Date(uren[regenEindIndex]) : eindVandaag)
+    if (mmBui < REGEN_MINIMUM_MM) return lang.noRainExpected
+
+    const urenTotRegen = (new Date(uren[regenStartIndex]) - now) / 1000 / 3600
+    const startTijd = formatUur(new Date(uren[regenStartIndex]))
+
+    if (urenTotRegen <= DICHTBIJ_UREN) {
+      if (regenEindIndex < 0) return `${lang.rainFrom}${startTijd}+ ${mmBui}mm`
+      return `${lang.rainFrom}${startTijd}-${formatUur(new Date(uren[regenEindIndex]))} ${mmBui}mm`
+    }
+    return `${lang.rainFrom}${startTijd}`
+  }
 }
 
 // ===============================
@@ -97,26 +326,24 @@ if (cacheLeeftijd > 15) {
     const lat = loc.latitude.toFixed(4)
     const lon = loc.longitude.toFixed(4)
 
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,precipitation,weathercode&hourly=temperature_2m,precipitation_probability,precipitation&forecast_days=2&timezone=auto`
+    // Open-Meteo altijd ophalen voor temperatuur en emoji
+    const omJson = await haalOpenMeteoOp(lat, lon)
 
-    const req = new Request(url)
-    const json = await req.loadJSON()
-
-    const tempNu = Math.round(json.current.temperature_2m)
-    const regenNu = json.current.precipitation >= REGEN_DREMPEL_MM
-    const weatherCode = json.current.weathercode
+    const tempNu = Math.round(omJson.current.temperature_2m)
+    const regenNuOM = omJson.current.precipitation >= REGEN_DREMPEL_MM
+    const weatherCode = omJson.current.weathercode
     const emoji = weerEmoji(weatherCode)
 
-    const uren = json.hourly.time
-    const temps = json.hourly.temperature_2m
-    const neerslag = json.hourly.precipitation
-    const kansen = json.hourly.precipitation_probability
+    const uren = omJson.hourly.time
+    const temps = omJson.hourly.temperature_2m
+    const eindVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+    const beginVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 
     const huidigUur = lokaalUurPrefix(now)
     let startIndex = uren.findIndex(t => t.startsWith(huidigUur))
     if (startIndex < 0) startIndex = 0
 
-    const eindVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
+    // Temperatuur min/max
     let maxTemp = tempNu
     let minTemp = tempNu
     for (let i = startIndex; i < uren.length; i++) {
@@ -126,7 +353,6 @@ if (cacheLeeftijd > 15) {
       minTemp = Math.min(minTemp, Math.round(temps[i]))
     }
 
-    const beginVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     let maxUurIndex = -1
     let hoogsteTemp = -999
     for (let i = 0; i < uren.length; i++) {
@@ -136,74 +362,38 @@ if (cacheLeeftijd > 15) {
     }
     const maxAlBereikt = maxUurIndex >= 0 && new Date(uren[maxUurIndex]) <= now
 
-    // ===============================
-    // REGEN ANALYSE
-    // ===============================
+    // Regen bericht op basis van gekozen API
     let regenBericht = ""
 
-    if (regenNu) {
-      let droogIndex = -1
-      for (let i = startIndex + 1; i < uren.length; i++) {
-        const t = new Date(uren[i])
-        if (t > eindVandaag) break
-        if (neerslag[i] < REGEN_DREMPEL_MM && kansen[i] < REGEN_DREMPEL_KANS) { droogIndex = i; break }
-      }
-      if (droogIndex < 0) {
-        const dagsom = berekenSom(neerslag, uren, startIndex, eindVandaag)
-        regenBericht = `${lang.rainAllDay} ${dagsom}mm`
-      } else {
-        const droogTijd = formatUur(new Date(uren[droogIndex]))
-        const mmTotDroog = berekenSom(neerslag, uren, startIndex, new Date(uren[droogIndex]))
-        regenBericht = `${mmTotDroog}mm ${lang.until} ${droogTijd}`
-      }
+    if (RAIN_API === "buienradar") {
+      const buienData = await haalBuienradarOp(lat, lon)
+      regenBericht = analyseBuienradar(buienData, now)
+    } else if (RAIN_API === "combined") {
+      const buienData = await haalBuienradarOp(lat, lon)
+      regenBericht = analyseCombinatie(buienData, omJson, now)
     } else {
-      let regenStartIndex = -1
-      for (let i = startIndex; i < uren.length; i++) {
-        const t = new Date(uren[i])
-        if (t > eindVandaag) break
-        if (kansen[i] >= REGEN_DREMPEL_KANS) { regenStartIndex = i; break }
-      }
-      if (regenStartIndex < 0) {
-        regenBericht = lang.noRainExpected
-      } else {
-        let regenEindIndex = -1
-        for (let i = regenStartIndex + 1; i < uren.length; i++) {
-          const t = new Date(uren[i])
-          if (t > eindVandaag) break
-          if (kansen[i] < REGEN_DREMPEL_KANS && neerslag[i] < REGEN_DREMPEL_MM) { regenEindIndex = i; break }
-        }
-        const mmBui = berekenSom(neerslag, uren, regenStartIndex,
-          regenEindIndex >= 0 ? new Date(uren[regenEindIndex]) : eindVandaag)
-        if (mmBui < REGEN_MINIMUM_MM) {
-          regenBericht = lang.noRainExpected
-        } else {
-          const urenTotRegen = (new Date(uren[regenStartIndex]) - now) / 1000 / 3600
-          const startTijd = formatUur(new Date(uren[regenStartIndex]))
-          if (urenTotRegen <= DICHTBIJ_UREN) {
-            if (regenEindIndex < 0) {
-              regenBericht = `${lang.rainFrom}${startTijd}+ ${mmBui}mm`
-            } else {
-              const eindTijd = formatUur(new Date(uren[regenEindIndex]))
-              regenBericht = `${lang.rainFrom}${startTijd}-${eindTijd} ${mmBui}mm`
-            }
-          } else {
-            regenBericht = `${lang.rainFrom}${startTijd}`
-          }
-        }
-      }
+      // Open-Meteo (default)
+      regenBericht = analyseOpenMeteo(omJson, now)
     }
 
-    weerData = { timestamp: now.getTime(), tempNu, maxTemp, minTemp, maxAlBereikt, regenNu, emoji, regenBericht }
+    weerData = {
+      timestamp: now.getTime(),
+      tempNu, maxTemp, minTemp, maxAlBereikt,
+      regenNu: regenNuOM, emoji, regenBericht
+    }
+
     saveCache(weerData)
 
     // Debug
     const debugInfo = {
       tijdstip: now.toISOString(),
       lokaalUur: `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
-      huidigUur, startIndex, tempNu, maxTemp, minTemp, maxAlBereikt,
-      weatherCode, regenNu, precipitationHuidig: json.current.precipitation, regenBericht,
+      rainApi: RAIN_API, huidigUur, startIndex, tempNu, maxTemp, minTemp,
+      maxAlBereikt, weatherCode, regenNuOM,
+      precipitationHuidig: omJson.current.precipitation, regenBericht,
       eersteUren: uren.slice(startIndex, startIndex + 6).map((u, i) => ({
-        uur: u, kans: kansen[startIndex + i], mm: neerslag[startIndex + i]
+        uur: u, kans: omJson.hourly.precipitation_probability[startIndex + i],
+        mm: omJson.hourly.precipitation[startIndex + i]
       }))
     }
     fm.writeString(fm.joinPath(fm.documentsDirectory(), "weerDebug.txt"), JSON.stringify(debugInfo, null, 2))
@@ -268,7 +458,7 @@ function loadLang() {
 function loadSettings() {
   const defaults = {
     fontSize: 10, regenDrempelKans: 70, regenDrempelMm: 0.2,
-    regenMinimumMm: 0.5, dichtbijUren: 3, openApp: "weeronline"
+    regenMinimumMm: 0.5, dichtbijUren: 3, openApp: "weeronline", rainApi: "openmeteo"
   }
   if (!fm.fileExists(settingsPath)) return defaults
   try { return Object.assign(defaults, JSON.parse(fm.readString(settingsPath))) } catch { return defaults }
@@ -281,15 +471,6 @@ function loadCache() {
 
 function saveCache(data) {
   fm.writeString(cachePath, JSON.stringify(data))
-}
-
-function berekenSom(neerslag, uren, vanIndex, totTijd) {
-  let som = 0
-  for (let i = vanIndex; i < uren.length; i++) {
-    if (new Date(uren[i]) >= totTijd) break
-    som += neerslag[i]
-  }
-  return Math.round(som * 10) / 10
 }
 
 function weerEmoji(code) {
@@ -306,10 +487,4 @@ function weerEmoji(code) {
   if ([95].includes(code))                  return "⛈️"
   if ([96, 99].includes(code))              return "🌩️"
   return "🌥️"
-}
-
-function formatUur(d) {
-  const h = d.getHours()
-  const m = d.getMinutes()
-  return m === 0 ? `${h}u` : `${h}:${m.toString().padStart(2, "0")}`
 }
