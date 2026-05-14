@@ -42,6 +42,28 @@
           "default": "openmeteo"
         },
         {
+          "key": "rainDisplay",
+          "type": "choice",
+          "section": "Regen",
+          "label": "labelRainDisplay",
+          "choices": [
+            { "label": "Wolkjes 🌧️🌧️🌧️", "value": "clouds" },
+            { "label": "Millimeter 2.4mm", "value": "mm" }
+          ],
+          "default": "clouds"
+        },
+        {
+          "key": "rainTime",
+          "type": "choice",
+          "section": "Regen",
+          "label": "labelRainTime",
+          "choices": [
+            { "label": "Duur (45min / 1u+)", "value": "duration" },
+            { "label": "Eindtijd (23:05)", "value": "endtime" }
+          ],
+          "default": "duration"
+        },
+        {
           "key": "regenDrempelKans",
           "type": "number",
           "section": "Regen",
