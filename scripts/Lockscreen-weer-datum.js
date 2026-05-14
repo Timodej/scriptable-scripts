@@ -16,7 +16,7 @@ const ACTION = params.action ?? "default"
 // ===============================
 const FONT_SIZE = 10
 const CACHE_FILE = "weerWidgetCache.json"
-const LANG_FILE = "timoLanguage.json"
+const LANG_FILE = "timoLanguage-weer.json"
 const REGEN_DREMPEL_KANS = 70
 const REGEN_DREMPEL_MM = 0.2
 const REGEN_MINIMUM_MM = 0.5
@@ -285,7 +285,6 @@ Script.complete()
 function loadLang() {
   const fallback = {
     months: ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
-    days: ["Zo","Ma","Di","Wo","Do","Vr","Za"],
     noRainExpected: "droog",
     rainAllDay: "🌧️🌧️",
     rainFrom: "☔️",
