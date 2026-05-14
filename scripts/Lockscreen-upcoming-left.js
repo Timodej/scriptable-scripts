@@ -27,7 +27,12 @@ const ACTION = params.action ?? "open"
 // ===============================
 // FILE SYSTEM
 // ===============================
-const fm = FileManager.local()
+let fm
+try {
+  fm = FileManager.iCloud()
+} catch (e) {
+  fm = FileManager.local()
+}
 const settingsPath = fm.joinPath(fm.documentsDirectory(), SETTINGS_FILE)
 const shownPath = fm.joinPath(fm.documentsDirectory(), SHOWN_FILE)
 
