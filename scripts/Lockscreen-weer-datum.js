@@ -12,15 +12,11 @@ const params = args.widgetParameter ? JSON.parse(args.widgetParameter) : {}
 const ACTION = params.action ?? "default"
 
 // ===============================
-// INSTELLINGEN
+// BESTANDEN
 // ===============================
-const FONT_SIZE = 10
 const CACHE_FILE = "weerWidgetCache.json"
 const LANG_FILE = "timoLanguage-weer.json"
-const REGEN_DREMPEL_KANS = 70
-const REGEN_DREMPEL_MM = 0.2
-const REGEN_MINIMUM_MM = 0.5
-const DICHTBIJ_UREN = 3
+const SETTINGS_FILE = "Lockscreen-weer-datum-settings.json"
 
 // ===============================
 // FILE SYSTEM
@@ -33,22 +29,34 @@ try {
 }
 const cachePath = fm.joinPath(fm.documentsDirectory(), CACHE_FILE)
 const langPath = fm.joinPath(fm.documentsDirectory(), LANG_FILE)
+const settingsPath = fm.joinPath(fm.documentsDirectory(), SETTINGS_FILE)
 
 // ===============================
-// TAAL LADEN
+// TAAL EN INSTELLINGEN LADEN
 // ===============================
 const lang = loadLang()
+const settings = loadSettings()
 
 // ===============================
-// APP OPEN / PREVIEW
+// INSTELLINGEN UIT BESTAND
+// ===============================
+const FONT_SIZE = settings.fontSize ?? 10
+const REGEN_DREMPEL_KANS = settings.regenDrempelKans ?? 70
+const REGEN_DREMPEL_MM = settings.regenDrempelMm ?? 0.2
+const REGEN_MINIMUM_MM = settings.regenMinimumMm ?? 0.5
+const DICHTBIJ_UREN = settings.dichtbijUren ?? 3
+
+// ===============================
+// APP OPENEN / PREVIEW
 // ===============================
 let shouldPreview = false
 
 if (config.runsInApp) {
   if (ACTION === "open") {
+    const scheme = settings.openApp ?? "weeronline"
     const appleDate = new Date("2001/01/01")
     const timestamp = (new Date().getTime() - appleDate.getTime()) / 1e3
-    const callback = new CallbackURL("weeronline://" + timestamp)
+    const callback = new CallbackURL(`${scheme}://` + timestamp)
     callback.open()
     Script.complete()
     return
@@ -124,10 +132,7 @@ if (cacheLeeftijd > 15) {
     for (let i = 0; i < uren.length; i++) {
       const t = new Date(uren[i])
       if (t < beginVandaag || t > eindVandaag) continue
-      if (temps[i] > hoogsteTemp) {
-        hoogsteTemp = temps[i]
-        maxUurIndex = i
-      }
+      if (temps[i] > hoogsteTemp) { hoogsteTemp = temps[i]; maxUurIndex = i }
     }
     const maxAlBereikt = maxUurIndex >= 0 && new Date(uren[maxUurIndex]) <= now
 
@@ -141,12 +146,8 @@ if (cacheLeeftijd > 15) {
       for (let i = startIndex + 1; i < uren.length; i++) {
         const t = new Date(uren[i])
         if (t > eindVandaag) break
-        if (neerslag[i] < REGEN_DREMPEL_MM && kansen[i] < REGEN_DREMPEL_KANS) {
-          droogIndex = i
-          break
-        }
+        if (neerslag[i] < REGEN_DREMPEL_MM && kansen[i] < REGEN_DREMPEL_KANS) { droogIndex = i; break }
       }
-
       if (droogIndex < 0) {
         const dagsom = berekenSom(neerslag, uren, startIndex, eindVandaag)
         regenBericht = `${lang.rainAllDay} ${dagsom}mm`
@@ -155,18 +156,13 @@ if (cacheLeeftijd > 15) {
         const mmTotDroog = berekenSom(neerslag, uren, startIndex, new Date(uren[droogIndex]))
         regenBericht = `${mmTotDroog}mm ${lang.until} ${droogTijd}`
       }
-
     } else {
       let regenStartIndex = -1
       for (let i = startIndex; i < uren.length; i++) {
         const t = new Date(uren[i])
         if (t > eindVandaag) break
-        if (kansen[i] >= REGEN_DREMPEL_KANS) {
-          regenStartIndex = i
-          break
-        }
+        if (kansen[i] >= REGEN_DREMPEL_KANS) { regenStartIndex = i; break }
       }
-
       if (regenStartIndex < 0) {
         regenBericht = lang.noRainExpected
       } else {
@@ -174,21 +170,15 @@ if (cacheLeeftijd > 15) {
         for (let i = regenStartIndex + 1; i < uren.length; i++) {
           const t = new Date(uren[i])
           if (t > eindVandaag) break
-          if (kansen[i] < REGEN_DREMPEL_KANS && neerslag[i] < REGEN_DREMPEL_MM) {
-            regenEindIndex = i
-            break
-          }
+          if (kansen[i] < REGEN_DREMPEL_KANS && neerslag[i] < REGEN_DREMPEL_MM) { regenEindIndex = i; break }
         }
-
         const mmBui = berekenSom(neerslag, uren, regenStartIndex,
           regenEindIndex >= 0 ? new Date(uren[regenEindIndex]) : eindVandaag)
-
         if (mmBui < REGEN_MINIMUM_MM) {
           regenBericht = lang.noRainExpected
         } else {
           const urenTotRegen = (new Date(uren[regenStartIndex]) - now) / 1000 / 3600
           const startTijd = formatUur(new Date(uren[regenStartIndex]))
-
           if (urenTotRegen <= DICHTBIJ_UREN) {
             if (regenEindIndex < 0) {
               regenBericht = `${lang.rainFrom}${startTijd}+ ${mmBui}mm`
@@ -203,12 +193,7 @@ if (cacheLeeftijd > 15) {
       }
     }
 
-    weerData = {
-      timestamp: now.getTime(),
-      tempNu, maxTemp, minTemp, maxAlBereikt,
-      regenNu, emoji, regenBericht
-    }
-
+    weerData = { timestamp: now.getTime(), tempNu, maxTemp, minTemp, maxAlBereikt, regenNu, emoji, regenBericht }
     saveCache(weerData)
 
     // Debug
@@ -216,26 +201,18 @@ if (cacheLeeftijd > 15) {
       tijdstip: now.toISOString(),
       lokaalUur: `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
       huidigUur, startIndex, tempNu, maxTemp, minTemp, maxAlBereikt,
-      weatherCode, regenNu,
-      precipitationHuidig: json.current.precipitation,
-      regenBericht,
+      weatherCode, regenNu, precipitationHuidig: json.current.precipitation, regenBericht,
       eersteUren: uren.slice(startIndex, startIndex + 6).map((u, i) => ({
         uur: u, kans: kansen[startIndex + i], mm: neerslag[startIndex + i]
       }))
     }
-    const debugPath = fm.joinPath(fm.documentsDirectory(), "weerDebug.txt")
-    fm.writeString(debugPath, JSON.stringify(debugInfo, null, 2))
+    fm.writeString(fm.joinPath(fm.documentsDirectory(), "weerDebug.txt"), JSON.stringify(debugInfo, null, 2))
 
   } catch (e) {
     if (!weerData) {
-      weerData = {
-        tempNu: "--", maxTemp: "--", minTemp: "--",
-        maxAlBereikt: false, regenNu: false,
-        emoji: "🌥️", regenBericht: "geen data"
-      }
+      weerData = { tempNu: "--", maxTemp: "--", minTemp: "--", maxAlBereikt: false, regenNu: false, emoji: "🌥️", regenBericht: "geen data" }
     }
-    const debugPath = fm.joinPath(fm.documentsDirectory(), "weerDebug.txt")
-    fm.writeString(debugPath, JSON.stringify({ fout: e.message, tijdstip: now.toISOString() }, null, 2))
+    fm.writeString(fm.joinPath(fm.documentsDirectory(), "weerDebug.txt"), JSON.stringify({ fout: e.message, tijdstip: now.toISOString() }, null, 2))
   }
 }
 
@@ -243,8 +220,7 @@ if (cacheLeeftijd > 15) {
 // TEKSTREGEL OPBOUWEN
 // ===============================
 let tempString
-const regenDichtbij = weerData.regenBericht.startsWith(lang.rainFrom) &&
-  !weerData.regenBericht.includes("+")
+const regenDichtbij = weerData.regenBericht.startsWith(lang.rainFrom) && !weerData.regenBericht.includes("+")
 
 if (weerData.regenNu || regenDichtbij) {
   tempString = `${weerData.tempNu}°`
@@ -261,7 +237,6 @@ const regel = `${maandNaam} ${tempString} ${weerData.emoji} ${weerData.regenBeri
 // ===============================
 let widget = new ListWidget()
 widget.setPadding(2, 4, 2, 4)
-
 let t = widget.addText(regel)
 t.font = Font.systemFont(FONT_SIZE)
 t.textColor = Color.white()
@@ -276,48 +251,38 @@ if (config.runsInWidget || config.runsInAccessoryWidget) {
 } else {
   await widget.presentSmall()
 }
-
 Script.complete()
 
 // ===============================
-// TAAL FUNCTIES
+// FUNCTIES
 // ===============================
 function loadLang() {
   const fallback = {
     months: ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
-    noRainExpected: "droog",
-    rainAllDay: "🌧️🌧️",
-    rainFrom: "☔️",
-    dryFrom: "🌂",
-    until: "tot"
+    noRainExpected: "droog", rainAllDay: "🌧️🌧️", rainFrom: "☔️", dryFrom: "🌂", until: "tot"
   }
   if (!fm.fileExists(langPath)) return fallback
-  try {
-    return Object.assign(fallback, JSON.parse(fm.readString(langPath)))
-  } catch {
-    return fallback
-  }
+  try { return Object.assign(fallback, JSON.parse(fm.readString(langPath))) } catch { return fallback }
 }
 
-// ===============================
-// CACHE FUNCTIES
-// ===============================
+function loadSettings() {
+  const defaults = {
+    fontSize: 10, regenDrempelKans: 70, regenDrempelMm: 0.2,
+    regenMinimumMm: 0.5, dichtbijUren: 3, openApp: "weeronline"
+  }
+  if (!fm.fileExists(settingsPath)) return defaults
+  try { return Object.assign(defaults, JSON.parse(fm.readString(settingsPath))) } catch { return defaults }
+}
+
 function loadCache() {
   if (!fm.fileExists(cachePath)) return null
-  try {
-    return JSON.parse(fm.readString(cachePath))
-  } catch {
-    return null
-  }
+  try { return JSON.parse(fm.readString(cachePath)) } catch { return null }
 }
 
 function saveCache(data) {
   fm.writeString(cachePath, JSON.stringify(data))
 }
 
-// ===============================
-// NEERSLAG OPTELLEN
-// ===============================
 function berekenSom(neerslag, uren, vanIndex, totTijd) {
   let som = 0
   for (let i = vanIndex; i < uren.length; i++) {
@@ -327,9 +292,6 @@ function berekenSom(neerslag, uren, vanIndex, totTijd) {
   return Math.round(som * 10) / 10
 }
 
-// ===============================
-// WEER EMOJI op basis van WMO weathercode
-// ===============================
 function weerEmoji(code) {
   if (code === 0)                            return "☀️"
   if (code === 1)                            return "🌤️"
@@ -346,9 +308,6 @@ function weerEmoji(code) {
   return "🌥️"
 }
 
-// ===============================
-// UTILITIES
-// ===============================
 function formatUur(d) {
   const h = d.getHours()
   const m = d.getMinutes()
