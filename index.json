@@ -1,0 +1,25 @@
+{
+  "manager": "Timo's Scripts",
+  "version": "1.0",
+  "author": "Timodej",
+  "scripts": [
+    {
+      "name": "Lockscreen-weer-datum",
+      "file": "Lockscreen-weer-datum.js",
+      "description": "Lockscreen widget die het weer toont op één regel. Temperatuur, weeremoji en regenvoorspelling.",
+      "version": "1.0"
+    },
+    {
+      "name": "Lockscreen-upcoming-left",
+      "file": "Lockscreen-upcoming-left.js",
+      "description": "Lockscreen widget (links). Toont eerst openstaande reminders, daarna aankomende agenda-events aanvullend tot 6 regels.",
+      "version": "1.0"
+    },
+    {
+      "name": "Lockscreen-upcoming-right",
+      "file": "Lockscreen-upcoming-right.js",
+      "description": "Lockscreen widget (rechts). Toont de eerstvolgende agenda-events die niet in de linker widget staan.",
+      "version": "1.0"
+    }
+  ]
+}
