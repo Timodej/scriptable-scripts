@@ -1,9 +1,6 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: teal; icon-glyph: cloud-sun;
-// Variables used by Scriptable.
-// These must be at the very top of the file. Do not edit.
-// icon-color: teal; icon-glyph: cloud-sun;
 // ===============================
 // Lock Screen Widget: Weer (één regel)
 // ===============================
@@ -19,10 +16,11 @@ const ACTION = params.action ?? "default"
 // ===============================
 const FONT_SIZE = 10
 const CACHE_FILE = "weerWidgetCache.json"
-const REGEN_DREMPEL_KANS = 70      // % kans vanaf wanneer we regen verwachten
-const REGEN_DREMPEL_MM = 0.2       // mm per uur vanaf wanneer het "regent"
-const REGEN_MINIMUM_MM = 0.5       // mm totaal: onder deze waarde negeren we de bui
-const DICHTBIJ_UREN = 3            // uren: binnen deze grens tonen we mm + duur
+const LANG_FILE = "timoLanguage.json"
+const REGEN_DREMPEL_KANS = 70
+const REGEN_DREMPEL_MM = 0.2
+const REGEN_MINIMUM_MM = 0.5
+const DICHTBIJ_UREN = 3
 
 // ===============================
 // FILE SYSTEM
@@ -33,8 +31,13 @@ try {
 } catch (e) {
   fm = FileManager.local()
 }
-
 const cachePath = fm.joinPath(fm.documentsDirectory(), CACHE_FILE)
+const langPath = fm.joinPath(fm.documentsDirectory(), LANG_FILE)
+
+// ===============================
+// TAAL LADEN
+// ===============================
+const lang = loadLang()
 
 // ===============================
 // APP OPEN / PREVIEW
@@ -62,20 +65,17 @@ if (!config.runsInWidget && !config.runsInAccessoryWidget && !shouldPreview) {
 }
 
 // ===============================
+// MAAND (uit taalbestand)
+// ===============================
+const now = new Date()
+const maandNaam = lang.months[now.getMonth()]
+
+// ===============================
 // HULPFUNCTIE: lokaal uur-prefix
-// Vermijdt UTC/tijdzone problemen
 // ===============================
 function lokaalUurPrefix(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}`
 }
-
-// ===============================
-// MAAND (kleine letter)
-// ===============================
-const now = new Date()
-const maanden = ["jan", "feb", "mrt", "apr", "mei", "jun",
-  "jul", "aug", "sep", "okt", "nov", "dec"]
-const maandNaam = maanden[now.getMonth()]
 
 // ===============================
 // WEERDATA OPHALEN
@@ -104,12 +104,10 @@ if (cacheLeeftijd > 15) {
     const neerslag = json.hourly.precipitation
     const kansen = json.hourly.precipitation_probability
 
-    // Huidig uur index via lokale tijd
     const huidigUur = lokaalUurPrefix(now)
     let startIndex = uren.findIndex(t => t.startsWith(huidigUur))
     if (startIndex < 0) startIndex = 0
 
-    // Max en min temperatuur — alleen vandaag, lokale tijd
     const eindVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
     let maxTemp = tempNu
     let minTemp = tempNu
@@ -120,7 +118,6 @@ if (cacheLeeftijd > 15) {
       minTemp = Math.min(minTemp, Math.round(temps[i]))
     }
 
-    // Is de max al bereikt vandaag?
     const beginVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     let maxUurIndex = -1
     let hoogsteTemp = -999
@@ -136,12 +133,10 @@ if (cacheLeeftijd > 15) {
 
     // ===============================
     // REGEN ANALYSE
-    // Alleen kijken binnen vandaag (tot middernacht)
     // ===============================
     let regenBericht = ""
 
     if (regenNu) {
-      // Regent nu — zoek wanneer het droog wordt (alleen vandaag)
       let droogIndex = -1
       for (let i = startIndex + 1; i < uren.length; i++) {
         const t = new Date(uren[i])
@@ -153,18 +148,15 @@ if (cacheLeeftijd > 15) {
       }
 
       if (droogIndex < 0) {
-        // Regen rest van de dag
         const dagsom = berekenSom(neerslag, uren, startIndex, eindVandaag)
-        regenBericht = `🌧️🌧️ ${dagsom}mm`
+        regenBericht = `${lang.rainAllDay} ${dagsom}mm`
       } else {
-        // Stopt om droogIndex
         const droogTijd = formatUur(new Date(uren[droogIndex]))
         const mmTotDroog = berekenSom(neerslag, uren, startIndex, new Date(uren[droogIndex]))
-        regenBericht = `${mmTotDroog}mm tot ${droogTijd}`
+        regenBericht = `${mmTotDroog}mm ${lang.until} ${droogTijd}`
       }
 
     } else {
-      // Droog nu — zoek wanneer regen begint (alleen vandaag)
       let regenStartIndex = -1
       for (let i = startIndex; i < uren.length; i++) {
         const t = new Date(uren[i])
@@ -176,10 +168,8 @@ if (cacheLeeftijd > 15) {
       }
 
       if (regenStartIndex < 0) {
-        regenBericht = "droog"
+        regenBericht = lang.noRainExpected
       } else {
-        // Controleer of de verwachte bui genoeg mm heeft
-        // Zoek eerst het einde van de bui
         let regenEindIndex = -1
         for (let i = regenStartIndex + 1; i < uren.length; i++) {
           const t = new Date(uren[i])
@@ -194,23 +184,20 @@ if (cacheLeeftijd > 15) {
           regenEindIndex >= 0 ? new Date(uren[regenEindIndex]) : eindVandaag)
 
         if (mmBui < REGEN_MINIMUM_MM) {
-          // Te weinig neerslag — negeer en toon droog
-          regenBericht = "droog"
+          regenBericht = lang.noRainExpected
         } else {
           const urenTotRegen = (new Date(uren[regenStartIndex]) - now) / 1000 / 3600
           const startTijd = formatUur(new Date(uren[regenStartIndex]))
 
           if (urenTotRegen <= DICHTBIJ_UREN) {
-            // Regen binnen 3 uur
             if (regenEindIndex < 0) {
-              regenBericht = `☔️${startTijd}+ ${mmBui}mm`
+              regenBericht = `${lang.rainFrom}${startTijd}+ ${mmBui}mm`
             } else {
               const eindTijd = formatUur(new Date(uren[regenEindIndex]))
-              regenBericht = `☔️${startTijd}-${eindTijd} ${mmBui}mm`
+              regenBericht = `${lang.rainFrom}${startTijd}-${eindTijd} ${mmBui}mm`
             }
           } else {
-            // Regen meer dan 3 uur weg
-            regenBericht = `☔️${startTijd}`
+            regenBericht = `${lang.rainFrom}${startTijd}`
           }
         }
       }
@@ -218,13 +205,8 @@ if (cacheLeeftijd > 15) {
 
     weerData = {
       timestamp: now.getTime(),
-      tempNu,
-      maxTemp,
-      minTemp,
-      maxAlBereikt,
-      regenNu,
-      emoji,
-      regenBericht
+      tempNu, maxTemp, minTemp, maxAlBereikt,
+      regenNu, emoji, regenBericht
     }
 
     saveCache(weerData)
@@ -233,9 +215,7 @@ if (cacheLeeftijd > 15) {
     const debugInfo = {
       tijdstip: now.toISOString(),
       lokaalUur: `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
-      huidigUur,
-      startIndex,
-      tempNu, maxTemp, minTemp, maxAlBereikt,
+      huidigUur, startIndex, tempNu, maxTemp, minTemp, maxAlBereikt,
       weatherCode, regenNu,
       precipitationHuidig: json.current.precipitation,
       regenBericht,
@@ -263,9 +243,7 @@ if (cacheLeeftijd > 15) {
 // TEKSTREGEL OPBOUWEN
 // ===============================
 let tempString
-
-// Regen binnen 3 uur check
-const regenDichtbij = weerData.regenBericht.startsWith("☔️") &&
+const regenDichtbij = weerData.regenBericht.startsWith(lang.rainFrom) &&
   !weerData.regenBericht.includes("+")
 
 if (weerData.regenNu || regenDichtbij) {
@@ -300,6 +278,27 @@ if (config.runsInWidget || config.runsInAccessoryWidget) {
 }
 
 Script.complete()
+
+// ===============================
+// TAAL FUNCTIES
+// ===============================
+function loadLang() {
+  const fallback = {
+    months: ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
+    days: ["Zo","Ma","Di","Wo","Do","Vr","Za"],
+    noRainExpected: "droog",
+    rainAllDay: "🌧️🌧️",
+    rainFrom: "☔️",
+    dryFrom: "🌂",
+    until: "tot"
+  }
+  if (!fm.fileExists(langPath)) return fallback
+  try {
+    return Object.assign(fallback, JSON.parse(fm.readString(langPath)))
+  } catch {
+    return fallback
+  }
+}
 
 // ===============================
 // CACHE FUNCTIES

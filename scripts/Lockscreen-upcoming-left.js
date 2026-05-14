@@ -1,9 +1,6 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: brown; icon-glyph: magic;
-// Variables used by Scriptable.
-// These must be at the very top of the file. Do not edit.
-// icon-color: brown; icon-glyph: magic;
 // ===============================
 // Lock Screen Widget deel 1: Reminders + eerste Events
 // ===============================
@@ -17,12 +14,13 @@ const DEFAULT_DAYS_AHEAD = 7
 const DEFAULT_SHOW_END_TIME = false
 const SETTINGS_FILE = "calendarWidgetSettings.json"
 const SHOWN_FILE = "calendarWidgetShown.json"
+const LANG_FILE = "timoLanguage.json"
 
 // ===============================
 // PARAMETERS
 // ===============================
 const params = args.widgetParameter ? JSON.parse(args.widgetParameter) : {}
-const ACTION = params.action ?? "open"
+const ACTION = params.action ?? "default"
 
 // ===============================
 // FILE SYSTEM
@@ -35,6 +33,12 @@ try {
 }
 const settingsPath = fm.joinPath(fm.documentsDirectory(), SETTINGS_FILE)
 const shownPath = fm.joinPath(fm.documentsDirectory(), SHOWN_FILE)
+const langPath = fm.joinPath(fm.documentsDirectory(), LANG_FILE)
+
+// ===============================
+// TAAL LADEN
+// ===============================
+let lang = loadLang()
 
 // ===============================
 // LOAD SETTINGS
@@ -56,7 +60,6 @@ if (config.runsInApp) {
   } else if (ACTION === "preview") {
     shouldPreview = true
   } else {
-    // Standaard (geen parameter): settings menu
     let menu = new Alert()
     menu.title = "Settings"
     menu.addAction("Preview List")
@@ -86,7 +89,7 @@ if (config.runsInApp) {
       let a = new Alert()
       a.title = "Eindtijd tonen?"
       a.addAction("Toggle")
-      a.addCancelAction("Annuleer")
+      a.addCancelAction(lang.cancel)
 
       if ((await a.presentAlert()) === 0) {
         settings.showEndTime = !settings.showEndTime
@@ -181,7 +184,6 @@ for (let r of reminders) {
 
 // ===============================
 // MERGE & SORT
-// Reminders eerst, daarna events aanvullend tot MAX_ITEMS
 // ===============================
 let reminderItems = [...undated, ...dated]
 let reminderCount = Math.min(reminderItems.length, MAX_ITEMS)
@@ -192,10 +194,6 @@ let shownEventCount = eventItems.length
 
 let items = [...reminderItems.slice(0, reminderCount), ...eventItems]
 
-// ===============================
-// SLA OP HOEVEEL EVENTS GETOOND ZIJN
-// Zodat deel 2 verder kan gaan waar deel 1 stopt
-// ===============================
 fm.writeString(shownPath, JSON.stringify({ shownEventCount }))
 
 // ===============================
@@ -206,7 +204,7 @@ widget.setPadding(6, 6, 6, 6)
 
 if (!settings.calendars.length) {
 
-  let t = widget.addText("Geen agenda's geselecteerd")
+  let t = widget.addText(lang.noCalendarsSelected)
   t.font = Font.systemFont(FONT_SIZE)
   t.textColor = Color.gray()
 
@@ -215,32 +213,31 @@ if (!settings.calendars.length) {
   for (let item of items) {
 
     if (item.type === "undated" || item.type === "reminder") {
-  let row = widget.addStack()
-  row.spacing = 6
+      let row = widget.addStack()
+      row.spacing = 6
 
-  if (item.type === "reminder" && item.date) {
-    let isToday = isSameDay(item.date, startOfToday)
-    let isTomorrow = isSameDay(item.date, tomorrow)
-    let label =
-      isToday ? "Vandaag" :
-      isTomorrow ? "Morgen" :
-      formatDate(item.date)
-    let d = row.addText(label)
-    d.font = Font.systemFont(FONT_SIZE)
-    d.textColor = Color.white()
-    let t = row.addText(" " + item.title)
-    t.font = Font.systemFont(FONT_SIZE)
-    t.textColor = Color.white()
-    t.lineLimit = 1
-  } else {
-    let t = row.addText(item.title)
-    t.font = Font.systemFont(FONT_SIZE)
-    t.textColor = Color.white()
-    t.lineLimit = 1
-  }
-  continue
-}
-
+      if (item.type === "reminder" && item.date) {
+        let isToday = isSameDay(item.date, startOfToday)
+        let isTomorrow = isSameDay(item.date, tomorrow)
+        let label =
+          isToday ? lang.today :
+          isTomorrow ? lang.tomorrow :
+          formatDate(item.date)
+        let d = row.addText(label)
+        d.font = Font.systemFont(FONT_SIZE)
+        d.textColor = Color.white()
+        let t = row.addText(" " + item.title)
+        t.font = Font.systemFont(FONT_SIZE)
+        t.textColor = Color.white()
+        t.lineLimit = 1
+      } else {
+        let t = row.addText(item.title)
+        t.font = Font.systemFont(FONT_SIZE)
+        t.textColor = Color.white()
+        t.lineLimit = 1
+      }
+      continue
+    }
 
     let isToday = isSameDay(item.date, startOfToday)
     let isTomorrow = isSameDay(item.date, tomorrow)
@@ -250,8 +247,8 @@ if (!settings.calendars.length) {
     row.spacing = 6
 
     let label =
-      isToday ? "Vandaag" :
-      isTomorrow ? "Morgen" :
+      isToday ? lang.today :
+      isTomorrow ? lang.tomorrow :
       formatDate(item.date)
 
     let d = row.addText(label)
@@ -261,13 +258,12 @@ if (!settings.calendars.length) {
     if (!item.isAllDay && (isToday || isTomorrow)) {
       let timeString = formatTime(item.date)
       if (SHOW_END_TIME && item.endDate) {
-        timeString += "â" + formatTime(item.endDate)
+        timeString += "–" + formatTime(item.endDate)
       }
       let t = row.addText(" " + timeString)
       t.font = Font.systemFont(FONT_SIZE)
       t.textColor = color
     }
-
 
     let title = row.addText(" " + item.title)
     title.font = Font.systemFont(FONT_SIZE)
@@ -288,6 +284,25 @@ if (config.runsInWidget || config.runsInAccessoryWidget) {
 Script.complete()
 
 // ===============================
+// TAAL FUNCTIES
+// ===============================
+function loadLang() {
+  const fallback = {
+    today: "Vandaag", tomorrow: "Morgen",
+    noCalendarsSelected: "Geen agenda's geselecteerd",
+    noFurtherEvents: "Geen verdere events",
+    cancel: "Annuleer", months: ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
+    days: ["Zo","Ma","Di","Wo","Do","Vr","Za"]
+  }
+  if (!fm.fileExists(langPath)) return fallback
+  try {
+    return Object.assign(fallback, JSON.parse(fm.readString(langPath)))
+  } catch {
+    return fallback
+  }
+}
+
+// ===============================
 // SETTINGS FUNCTIONS
 // ===============================
 function defaultSettings() {
@@ -304,8 +319,7 @@ function defaultSettings() {
 function loadSettings() {
   if (!fm.fileExists(settingsPath)) return defaultSettings()
   try {
-    return Object.assign(defaultSettings(),
-      JSON.parse(fm.readString(settingsPath)))
+    return Object.assign(defaultSettings(), JSON.parse(fm.readString(settingsPath)))
   } catch {
     return defaultSettings()
   }
