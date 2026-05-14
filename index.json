@@ -9,11 +9,66 @@
       "description": "Lockscreen widget die het weer toont op één regel. Temperatuur, weeremoji en regenvoorspelling.",
       "version": "1.0",
       "langFile": "timoLanguage-weer.json",
+      "settingsFile": "Lockscreen-weer-datum-settings.json",
       "settings": [
         {
           "key": "language",
-          "label": "Taal / Language",
-          "type": "language"
+          "type": "language",
+          "section": "Taal"
+        },
+        {
+          "key": "openApp",
+          "type": "app",
+          "section": "Gedrag",
+          "label": "App bij tikken",
+          "apps": [
+            { "label": "Weeronline", "scheme": "weeronline" },
+            { "label": "Buienradar", "scheme": "buienradar" },
+            { "label": "Apple Weer", "scheme": "weather" },
+            { "label": "Overig", "scheme": "custom" }
+          ],
+          "default": "weeronline"
+        },
+        {
+          "key": "fontSize",
+          "type": "number",
+          "section": "Weergave",
+          "label": "Lettergrootte",
+          "default": 10,
+          "min": 8,
+          "max": 16
+        },
+        {
+          "key": "regenDrempelKans",
+          "type": "number",
+          "section": "Regen",
+          "label": "Regendrempel kans (%)",
+          "default": 70,
+          "min": 10,
+          "max": 100
+        },
+        {
+          "key": "regenDrempelMm",
+          "type": "decimal",
+          "section": "Regen",
+          "label": "Regendrempel (mm/uur)",
+          "default": 0.2
+        },
+        {
+          "key": "regenMinimumMm",
+          "type": "decimal",
+          "section": "Regen",
+          "label": "Minimum bui (mm totaal)",
+          "default": 0.5
+        },
+        {
+          "key": "dichtbijUren",
+          "type": "number",
+          "section": "Regen",
+          "label": "Dichtbij (uren)",
+          "default": 3,
+          "min": 1,
+          "max": 12
         }
       ]
     },
@@ -23,30 +78,66 @@
       "description": "Lockscreen widget (links). Toont eerst openstaande reminders, daarna aankomende agenda-events aanvullend tot 6 regels.",
       "version": "1.0",
       "langFile": "timoLanguage-upcoming.json",
+      "settingsFile": "Lockscreen-upcoming-left-settings.json",
       "settings": [
         {
           "key": "language",
-          "label": "Taal / Language",
-          "type": "language"
+          "type": "language",
+          "section": "Taal"
         },
         {
-          "key": "showEndTime",
-          "label": "showEndTime",
-          "type": "boolean",
-          "default": false
+          "key": "openApp",
+          "type": "app",
+          "section": "Gedrag",
+          "label": "App bij tikken",
+          "apps": [
+            { "label": "Reminders", "scheme": "x-apple-reminderkit" },
+            { "label": "WeekCal", "scheme": "weekcal" },
+            { "label": "Fantastical", "scheme": "fantastical2" },
+            { "label": "Apple Agenda", "scheme": "calshow" },
+            { "label": "Overig", "scheme": "custom" }
+          ],
+          "default": "x-apple-reminderkit"
+        },
+        {
+          "key": "calendars",
+          "type": "calendars",
+          "section": "Agenda",
+          "label": "Kalenders"
         },
         {
           "key": "daysAhead",
-          "label": "daysAhead",
           "type": "number",
+          "section": "Agenda",
+          "label": "Dagen vooruit",
           "default": 7,
           "min": 1,
           "max": 30
         },
         {
-          "key": "calendars",
-          "label": "selectCalendars",
-          "type": "calendars"
+          "key": "listItems",
+          "type": "number",
+          "section": "Weergave",
+          "label": "Max. items",
+          "default": 6,
+          "min": 1,
+          "max": 10
+        },
+        {
+          "key": "fontSize",
+          "type": "number",
+          "section": "Weergave",
+          "label": "Lettergrootte",
+          "default": 10,
+          "min": 8,
+          "max": 16
+        },
+        {
+          "key": "showEndTime",
+          "type": "boolean",
+          "section": "Weergave",
+          "label": "Eindtijd tonen",
+          "default": false
         }
       ]
     },
@@ -56,30 +147,66 @@
       "description": "Lockscreen widget (rechts). Toont de eerstvolgende agenda-events die niet in de linker widget staan.",
       "version": "1.0",
       "langFile": "timoLanguage-upcoming.json",
+      "settingsFile": "Lockscreen-upcoming-right-settings.json",
       "settings": [
         {
           "key": "language",
-          "label": "Taal / Language",
-          "type": "language"
+          "type": "language",
+          "section": "Taal"
         },
         {
-          "key": "showEndTime",
-          "label": "showEndTime",
-          "type": "boolean",
-          "default": false
+          "key": "openApp",
+          "type": "app",
+          "section": "Gedrag",
+          "label": "App bij tikken",
+          "apps": [
+            { "label": "WeekCal", "scheme": "weekcal" },
+            { "label": "Fantastical", "scheme": "fantastical2" },
+            { "label": "Apple Agenda", "scheme": "calshow" },
+            { "label": "Reminders", "scheme": "x-apple-reminderkit" },
+            { "label": "Overig", "scheme": "custom" }
+          ],
+          "default": "weekcal"
+        },
+        {
+          "key": "calendars",
+          "type": "calendars",
+          "section": "Agenda",
+          "label": "Kalenders"
         },
         {
           "key": "daysAhead",
-          "label": "daysAhead",
           "type": "number",
+          "section": "Agenda",
+          "label": "Dagen vooruit",
           "default": 7,
           "min": 1,
           "max": 30
         },
         {
-          "key": "calendars",
-          "label": "selectCalendars",
-          "type": "calendars"
+          "key": "listItems",
+          "type": "number",
+          "section": "Weergave",
+          "label": "Max. items",
+          "default": 6,
+          "min": 1,
+          "max": 10
+        },
+        {
+          "key": "fontSize",
+          "type": "number",
+          "section": "Weergave",
+          "label": "Lettergrootte",
+          "default": 10,
+          "min": 8,
+          "max": 16
+        },
+        {
+          "key": "showEndTime",
+          "type": "boolean",
+          "section": "Weergave",
+          "label": "Eindtijd tonen",
+          "default": false
         }
       ]
     }
