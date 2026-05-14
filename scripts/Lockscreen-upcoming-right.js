@@ -12,9 +12,10 @@ const DEFAULT_LIST_ITEMS = 6
 const DEFAULT_FONT_SIZE = 10
 const DEFAULT_DAYS_AHEAD = 7
 const DEFAULT_SHOW_END_TIME = false
-const SETTINGS_FILE = "calendarWidgetSettings.json"
+const SETTINGS_FILE = "Lockscreen-upcoming-right-settings.json"
+const SHARED_SETTINGS_FILE = "calendarWidgetSettings.json"
 const SHOWN_FILE = "calendarWidgetShown.json"
-const LANG_FILE = "timoLanguage.json"
+const LANG_FILE = "timoLanguage-upcoming.json"
 
 // ===============================
 // PARAMETERS
@@ -32,6 +33,7 @@ try {
   fm = FileManager.local()
 }
 const settingsPath = fm.joinPath(fm.documentsDirectory(), SETTINGS_FILE)
+const sharedSettingsPath = fm.joinPath(fm.documentsDirectory(), SHARED_SETTINGS_FILE)
 const shownPath = fm.joinPath(fm.documentsDirectory(), SHOWN_FILE)
 const langPath = fm.joinPath(fm.documentsDirectory(), LANG_FILE)
 
@@ -60,46 +62,7 @@ if (config.runsInApp) {
   } else if (ACTION === "preview") {
     shouldPreview = true
   } else {
-    let menu = new Alert()
-    menu.title = "Settings"
-    menu.addAction("Preview List")
-    menu.addAction("Reset Calendars")
-    menu.addAction("Display Settings")
-    menu.addCancelAction("Close")
-
-    let choice = await menu.presentAlert()
-
-    if (choice === -1) {
-      Script.complete()
-      return
-    }
-
-    if (choice === 0) {
-      shouldPreview = true
-    }
-
-    if (choice === 1) {
-      settings.calendars = await pickCalendars()
-      saveSettings(settings)
-      Script.complete()
-      return
-    }
-
-    if (choice === 2) {
-      let a = new Alert()
-      a.title = "Eindtijd tonen?"
-      a.addAction("Toggle")
-      a.addCancelAction(lang.cancel)
-
-      if ((await a.presentAlert()) === 0) {
-        settings.showEndTime = !settings.showEndTime
-        saveSettings(settings)
-        shouldPreview = true
-      } else {
-        Script.complete()
-        return
-      }
-    }
+    shouldPreview = true
   }
 }
 
@@ -110,25 +73,6 @@ if (!config.runsInWidget && !config.runsInAccessoryWidget && !shouldPreview) {
   Script.complete()
   return
 }
-
-// ===============================
-// CAL SAVE
-// ===============================
-if (!settings.calendars.length && config.runsInApp) {
-  settings.calendars = await pickCalendars()
-  saveSettings(settings)
-}
-
-// ===============================
-// DISPLAY VALUES
-// ===============================
-const MAX_ITEMS = settings.listItems ?? DEFAULT_LIST_ITEMS
-const FONT_SIZE = settings.linkFontToList
-  ? (MAX_ITEMS === 6 ? 10 : 11)
-  : (settings.fontSize ?? DEFAULT_FONT_SIZE)
-
-const DAYS_AHEAD = settings.daysAhead ?? DEFAULT_DAYS_AHEAD
-const SHOW_END_TIME = settings.showEndTime ?? DEFAULT_SHOW_END_TIME
 
 // ===============================
 // LEES HOEVEEL EVENTS DEEL 1 HEEFT GETOOND
@@ -142,6 +86,17 @@ if (fm.fileExists(shownPath)) {
     shownEventCount = 0
   }
 }
+
+// ===============================
+// DISPLAY VALUES
+// ===============================
+const MAX_ITEMS = settings.listItems ?? DEFAULT_LIST_ITEMS
+const FONT_SIZE = settings.linkFontToList
+  ? (MAX_ITEMS === 6 ? 10 : 11)
+  : (settings.fontSize ?? DEFAULT_FONT_SIZE)
+
+const DAYS_AHEAD = settings.daysAhead ?? DEFAULT_DAYS_AHEAD
+const SHOW_END_TIME = settings.showEndTime ?? DEFAULT_SHOW_END_TIME
 
 // ===============================
 // DATE RANGE
@@ -254,7 +209,7 @@ function loadLang() {
     today: "Vandaag", tomorrow: "Morgen",
     noCalendarsSelected: "Geen agenda's geselecteerd",
     noFurtherEvents: "Geen verdere events",
-    cancel: "Annuleer",
+    cancel: "Annuleer", on: "Aan", off: "Uit",
     months: ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
     days: ["Zo","Ma","Di","Wo","Do","Vr","Za"]
   }
@@ -281,12 +236,17 @@ function defaultSettings() {
 }
 
 function loadSettings() {
-  if (!fm.fileExists(settingsPath)) return defaultSettings()
-  try {
-    return Object.assign(defaultSettings(), JSON.parse(fm.readString(settingsPath)))
-  } catch {
-    return defaultSettings()
+  if (fm.fileExists(settingsPath)) {
+    try {
+      return Object.assign(defaultSettings(), JSON.parse(fm.readString(settingsPath)))
+    } catch {}
   }
+  if (fm.fileExists(sharedSettingsPath)) {
+    try {
+      return Object.assign(defaultSettings(), JSON.parse(fm.readString(sharedSettingsPath)))
+    } catch {}
+  }
+  return defaultSettings()
 }
 
 function saveSettings(s) {
