@@ -4,8 +4,8 @@
   "author": "Timodej",
   "scripts": [
     {
-      "name": "Timos-scripts",
-      "file": "Timos-scripts.js",
+      "name": "Timos-Scripts",
+      "file": "Timos-Scripts.js",
       "description": "De script manager zelf. Update om nieuwe functies en bugfixes te krijgen.",
       "version": "1.0",
       "isSelf": true,
