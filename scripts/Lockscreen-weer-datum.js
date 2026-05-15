@@ -43,8 +43,8 @@ const REGEN_DREMPEL_MM = settings.regenDrempelMm ?? 0.2
 const REGEN_MINIMUM_MM = settings.regenMinimumMm ?? 0.5
 const DICHTBIJ_UREN = settings.dichtbijUren ?? 3
 const RAIN_API = settings.rainApi ?? "openmeteo"
-const RAIN_DISPLAY = settings.rainDisplay ?? "clouds"  // "clouds" of "mm"
-const RAIN_TIME = settings.rainTime ?? "duration"       // "duration" of "endtime"
+const RAIN_DISPLAY = settings.rainDisplay ?? "clouds"
+const RAIN_TIME = settings.rainTime ?? "duration"
 
 // ===============================
 // APP OPENEN / PREVIEW
@@ -85,14 +85,16 @@ function lokaalUurPrefix(d) {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}T${String(d.getHours()).padStart(2,'0')}`
 }
 
-function formatTijd(d) {
+function formatTijd(ts) {
+  // Accepteert timestamp (getal) of Date object
+  const d = typeof ts === "number" ? new Date(ts) : ts
   const h = d.getHours()
   const m = d.getMinutes()
   return m === 0 ? `${h}u` : `${h}:${m.toString().padStart(2, "0")}`
 }
 
-function formatDuur(msec) {
-  const minuten = Math.round(msec / 1000 / 60)
+function formatDuur(ms) {
+  const minuten = Math.round(ms / 1000 / 60)
   if (minuten < 60) return `${minuten}min`
   const uren = Math.floor(minuten / 60)
   return `${uren}u+`
@@ -109,34 +111,17 @@ function berekenSom(neerslag, uren, vanIndex, totTijd) {
 
 // ===============================
 // NEERSLAG WEERGAVE
-// Wolkjes of mm afhankelijk van instelling
 // ===============================
 function neerslagWeergave(mm) {
-  if (RAIN_DISPLAY === "mm") {
-    return `${mm}mm`
-  }
-  // Wolkjes: 0-1mm = 🌧️, 1-5mm = 🌧️🌧️, 5mm+ = 🌧️🌧️🌧️
+  if (RAIN_DISPLAY === "mm") return `${mm}mm`
   if (mm < 1) return "🌧️"
   if (mm < 5) return "🌧️🌧️"
   return "🌧️🌧️🌧️"
 }
 
 // ===============================
-// TIJDWEERGAVE
-// Duur of eindtijd afhankelijk van instelling
-// ===============================
-function tijdWeergave(startTijd, eindTijd) {
-  if (!eindTijd) return ""
-  if (RAIN_TIME === "endtime") {
-    return `-${formatTijd(eindTijd)}`
-  }
-  // Duur
-  return ` ${formatDuur(eindTijd - startTijd)}`
-}
-
-// ===============================
 // REGELOPBOUW
-// Bepaalt welke info getoond wordt op basis van situatie
+// Alle tijden in buiData zijn timestamps (getTime())
 // ===============================
 function bouwRegel(maand, tempNu, maxTemp, minTemp, maxAlBereikt, emoji, situatie, buiData) {
   const tempVolledig = maxAlBereikt
@@ -147,38 +132,38 @@ function bouwRegel(maand, tempNu, maxTemp, minTemp, maxAlBereikt, emoji, situati
   switch (situatie) {
 
     case "droog":
-      // mei 22°↗32° ⛅️ droog
       return `${maand} ${tempVolledig} ${emoji} ${lang.noRainExpected}`
 
     case "regenVerWeg":
-      // mei 22°↗32° ⛅️ ☔️22u
       return `${maand} ${tempVolledig} ${emoji} ${lang.rainFrom}${formatTijd(buiData.start)}`
 
     case "regenDichtbij": {
-      // 22° ☔️22:20-23:05 🌧️🌧️  of  22° ☔️22:20 45min 🌧️🌧️
-      const tijdStr = buiData.eind
-        ? tijdWeergave(buiData.start, buiData.eind)
-        : ""
       const neerslagStr = neerslagWeergave(buiData.mm)
-      return `${tempKort} ${lang.rainFrom}${formatTijd(buiData.start)}${tijdStr} ${neerslagStr}`
+      if (buiData.eind) {
+        if (RAIN_TIME === "endtime") {
+          return `${tempKort} ${lang.rainFrom}${formatTijd(buiData.start)}-${formatTijd(buiData.eind)} ${neerslagStr}`
+        } else {
+          const duur = formatDuur(buiData.eind - buiData.start)
+          return `${tempKort} ${lang.rainFrom}${formatTijd(buiData.start)} ${duur} ${neerslagStr}`
+        }
+      }
+      return `${tempKort} ${lang.rainFrom}${formatTijd(buiData.start)} ${neerslagStr}`
     }
 
     case "regenNu": {
-      // 22° ☔️nog 45min 🌧️🌧️  of  22° ☔️tot 23:05 2.4mm
       const neerslagStr = neerslagWeergave(buiData.mm)
       if (buiData.eind) {
         if (RAIN_TIME === "endtime") {
           return `${tempKort} ${lang.rainFrom}${lang.until} ${formatTijd(buiData.eind)} ${neerslagStr}`
         } else {
-          return `${tempKort} ${lang.rainFrom}${lang.still} ${formatDuur(buiData.eind - now)} ${neerslagStr}`
+          const duur = formatDuur(buiData.eind - now.getTime())
+          return `${tempKort} ${lang.rainFrom}${lang.still} ${duur} ${neerslagStr}`
         }
       }
-      // Stopt niet meer vandaag
       return `${tempKort} ${lang.rainAllDay} ${neerslagStr}`
     }
 
     case "regenHeledag": {
-      // 22°↗32° ☔️☔️ 🌧️🌧️🌧️  of  22°↗32° ☔️☔️ 8mm
       const neerslagStr = neerslagWeergave(buiData.mm)
       return `${maand} ${tempVolledig} ${lang.rainAllDay} ${neerslagStr}`
     }
@@ -215,13 +200,14 @@ async function haalBuienradarOp(lat, lon) {
     const waarde = parseInt(delen[0])
     const mmPerUur = waarde === 0 ? 0 : Math.pow(10, (waarde - 109) / 32)
     const tijdstip = new Date(basisTijd.getTime() + i * 5 * 60 * 1000)
-    resultaat.push({ tijdstip, mmPerUur, mmPer5min: mmPerUur / 12 })
+    resultaat.push({ ts: tijdstip.getTime(), mmPerUur, mmPer5min: mmPerUur / 12 })
   }
   return resultaat
 }
 
 // ===============================
-// REGEN SITUATIE BEPALEN: OPEN-METEO
+// REGEN SITUATIE: OPEN-METEO
+// Alle tijden opgeslagen als timestamp (getTime())
 // ===============================
 function bepaalSituatieOpenMeteo(json, now) {
   const eindVandaag = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59)
@@ -235,106 +221,93 @@ function bepaalSituatieOpenMeteo(json, now) {
   if (startIndex < 0) startIndex = 0
 
   if (regenNu) {
-    // Zoek wanneer het droog wordt
     let droogIndex = -1
     for (let i = startIndex + 1; i < uren.length; i++) {
-      const t = new Date(uren[i])
-      if (t > eindVandaag) break
+      if (new Date(uren[i]) > eindVandaag) break
       if (neerslag[i] < REGEN_DREMPEL_MM && kansen[i] < REGEN_DREMPEL_KANS) { droogIndex = i; break }
     }
-
     if (droogIndex < 0) {
       const mm = berekenSom(neerslag, uren, startIndex, eindVandaag)
       return { situatie: "regenHeledag", buiData: { mm } }
     }
-
-    const droogTijd = new Date(uren[droogIndex])
-    const mm = berekenSom(neerslag, uren, startIndex, droogTijd)
-    return { situatie: "regenNu", buiData: { eind: droogTijd, mm } }
+    const droogTs = new Date(uren[droogIndex]).getTime()
+    const mm = berekenSom(neerslag, uren, startIndex, new Date(droogTs))
+    return { situatie: "regenNu", buiData: { eind: droogTs, mm } }
   }
 
-  // Zoek regenstart
   let regenStartIndex = -1
   for (let i = startIndex; i < uren.length; i++) {
-    const t = new Date(uren[i])
-    if (t > eindVandaag) break
+    if (new Date(uren[i]) > eindVandaag) break
     if (kansen[i] >= REGEN_DREMPEL_KANS) { regenStartIndex = i; break }
   }
-
   if (regenStartIndex < 0) return { situatie: "droog", buiData: null }
 
-  // Zoek regeneinde
   let regenEindIndex = -1
   for (let i = regenStartIndex + 1; i < uren.length; i++) {
-    const t = new Date(uren[i])
-    if (t > eindVandaag) break
+    if (new Date(uren[i]) > eindVandaag) break
     if (kansen[i] < REGEN_DREMPEL_KANS && neerslag[i] < REGEN_DREMPEL_MM) { regenEindIndex = i; break }
   }
 
-  const eindTijd = regenEindIndex >= 0 ? new Date(uren[regenEindIndex]) : null
-  const mm = berekenSom(neerslag, uren, regenStartIndex, eindTijd ?? eindVandaag)
+  const startTs = new Date(uren[regenStartIndex]).getTime()
+  const eindTs = regenEindIndex >= 0 ? new Date(uren[regenEindIndex]).getTime() : null
+  const mm = berekenSom(neerslag, uren, regenStartIndex, eindTs ? new Date(eindTs) : eindVandaag)
 
   if (mm < REGEN_MINIMUM_MM) return { situatie: "droog", buiData: null }
 
-  const startTijd = new Date(uren[regenStartIndex])
-  const urenTotRegen = (startTijd - now) / 1000 / 3600
-
+  const urenTotRegen = (startTs - now.getTime()) / 1000 / 3600
   if (urenTotRegen <= DICHTBIJ_UREN) {
-    return { situatie: "regenDichtbij", buiData: { start: startTijd, eind: eindTijd, mm } }
+    return { situatie: "regenDichtbij", buiData: { start: startTs, eind: eindTs, mm } }
   }
-  return { situatie: "regenVerWeg", buiData: { start: startTijd } }
+  return { situatie: "regenVerWeg", buiData: { start: startTs } }
 }
 
 // ===============================
-// REGEN SITUATIE BEPALEN: BUIENRADAR
+// REGEN SITUATIE: BUIENRADAR
 // ===============================
 function bepaalSituatieBuienradar(buienData, now) {
+  const nowTs = now.getTime()
   const regenNu = buienData.length > 0 && buienData[0].mmPerUur >= REGEN_DREMPEL_MM
 
   if (regenNu) {
-    let droogTijdstip = null
+    let droogTs = null
     let mm = 0
     for (const punt of buienData) {
-      if (punt.tijdstip < now) continue
-      if (punt.mmPerUur < REGEN_DREMPEL_MM) { droogTijdstip = punt.tijdstip; break }
+      if (punt.ts < nowTs) continue
+      if (punt.mmPerUur < REGEN_DREMPEL_MM) { droogTs = punt.ts; break }
       mm += punt.mmPer5min
     }
     mm = Math.round(mm * 10) / 10
-    if (!droogTijdstip) return { situatie: "regenHeledag", buiData: { mm } }
-    return { situatie: "regenNu", buiData: { eind: droogTijdstip, mm } }
+    if (!droogTs) return { situatie: "regenHeledag", buiData: { mm } }
+    return { situatie: "regenNu", buiData: { eind: droogTs, mm } }
   }
 
-  let regenStart = null
-  let regenEind = null
+  let startTs = null
+  let eindTs = null
   let mm = 0
 
   for (const punt of buienData) {
-    if (punt.tijdstip < now) continue
-    if (!regenStart && punt.mmPerUur >= REGEN_DREMPEL_MM) regenStart = punt.tijdstip
-    else if (regenStart && !regenEind && punt.mmPerUur < REGEN_DREMPEL_MM) { regenEind = punt.tijdstip; break }
-    if (regenStart) mm += punt.mmPer5min
+    if (punt.ts < nowTs) continue
+    if (!startTs && punt.mmPerUur >= REGEN_DREMPEL_MM) startTs = punt.ts
+    else if (startTs && !eindTs && punt.mmPerUur < REGEN_DREMPEL_MM) { eindTs = punt.ts; break }
+    if (startTs) mm += punt.mmPer5min
   }
   mm = Math.round(mm * 10) / 10
 
-  if (!regenStart || mm < REGEN_MINIMUM_MM) return { situatie: "droog", buiData: null }
+  if (!startTs || mm < REGEN_MINIMUM_MM) return { situatie: "droog", buiData: null }
 
-  const urenTotRegen = (regenStart - now) / 1000 / 3600
+  const urenTotRegen = (startTs - nowTs) / 1000 / 3600
   if (urenTotRegen <= DICHTBIJ_UREN) {
-    return { situatie: "regenDichtbij", buiData: { start: regenStart, eind: regenEind, mm } }
+    return { situatie: "regenDichtbij", buiData: { start: startTs, eind: eindTs, mm } }
   }
-  return { situatie: "regenVerWeg", buiData: { start: regenStart } }
+  return { situatie: "regenVerWeg", buiData: { start: startTs } }
 }
 
 // ===============================
-// REGEN SITUATIE BEPALEN: COMBINATIE
+// REGEN SITUATIE: COMBINATIE
 // ===============================
 function bepaalSituatieCombinatie(buienData, omJson, now) {
   const buienSituatie = bepaalSituatieBuienradar(buienData, now)
-
-  // Als buienradar iets anders zegt dan droog, gebruik dat
   if (buienSituatie.situatie !== "droog") return buienSituatie
-
-  // Anders Open-Meteo voor rest van dag
   return bepaalSituatieOpenMeteo(omJson, now)
 }
 
@@ -350,9 +323,7 @@ if (cacheLeeftijd > 15) {
     const lat = loc.latitude.toFixed(4)
     const lon = loc.longitude.toFixed(4)
 
-    // Open-Meteo altijd voor temperatuur en emoji
     const omJson = await haalOpenMeteoOp(lat, lon)
-
     const tempNu = Math.round(omJson.current.temperature_2m)
     const weatherCode = omJson.current.weathercode
     const emoji = weerEmoji(weatherCode)
@@ -366,7 +337,6 @@ if (cacheLeeftijd > 15) {
     let startIndex = uren.findIndex(t => t.startsWith(huidigUur))
     if (startIndex < 0) startIndex = 0
 
-    // Temperatuur min/max
     let maxTemp = tempNu
     let minTemp = tempNu
     for (let i = startIndex; i < uren.length; i++) {
@@ -385,7 +355,6 @@ if (cacheLeeftijd > 15) {
     }
     const maxAlBereikt = maxUurIndex >= 0 && new Date(uren[maxUurIndex]) <= now
 
-    // Bepaal situatie op basis van gekozen API
     let resultaat
     if (RAIN_API === "buienradar") {
       const buienData = await haalBuienradarOp(lat, lon)
@@ -397,7 +366,6 @@ if (cacheLeeftijd > 15) {
       resultaat = bepaalSituatieOpenMeteo(omJson, now)
     }
 
-    // Bouw de regel
     const regel = bouwRegel(
       maandNaam, tempNu, maxTemp, minTemp, maxAlBereikt,
       emoji, resultaat.situatie, resultaat.buiData
@@ -406,26 +374,30 @@ if (cacheLeeftijd > 15) {
     weerData = {
       timestamp: now.getTime(),
       regel, tempNu, maxTemp, minTemp, maxAlBereikt,
-      emoji, situatie: resultaat.situatie
+      emoji, situatie: resultaat.situatie, buiData: resultaat.buiData
     }
 
     saveCache(weerData)
 
-    // Debug
     fm.writeString(
       fm.joinPath(fm.documentsDirectory(), "weerDebug.txt"),
       JSON.stringify({
         tijdstip: now.toISOString(),
         lokaalUur: `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,
         rainApi: RAIN_API, rainDisplay: RAIN_DISPLAY, rainTime: RAIN_TIME,
-        situatie: resultaat.situatie, buiData: resultaat.buiData,
+        situatie: resultaat.situatie,
+        buiDataLeesbaar: resultaat.buiData ? {
+          start: resultaat.buiData.start ? new Date(resultaat.buiData.start).toLocaleTimeString() : null,
+          eind: resultaat.buiData.eind ? new Date(resultaat.buiData.eind).toLocaleTimeString() : null,
+          mm: resultaat.buiData.mm
+        } : null,
         regel, tempNu, maxTemp, minTemp, maxAlBereikt, weatherCode
       }, null, 2)
     )
 
   } catch (e) {
     if (!weerData) {
-      weerData = { regel: "geen data", tempNu: "--", emoji: "🌥️", situatie: "droog" }
+      weerData = { regel: "geen data", tempNu: "--", emoji: "🌥️", situatie: "droog", buiData: null }
     }
     fm.writeString(
       fm.joinPath(fm.documentsDirectory(), "weerDebug.txt"),
@@ -437,16 +409,9 @@ if (cacheLeeftijd > 15) {
 // ===============================
 // BUILD WIDGET
 // ===============================
-// Herbereken regel bij cache hit (instellingen kunnen gewijzigd zijn)
-let displayRegel = weerData.regel
-if (weerData.situatie && weerData.buiData !== undefined) {
-  // Cache bevat situatie, herbereken met actuele instellingen
-  // (zodat rainDisplay/rainTime wijzigingen direct effect hebben)
-}
-
 let widget = new ListWidget()
 widget.setPadding(2, 4, 2, 4)
-let t = widget.addText(displayRegel ?? weerData.regel)
+let t = widget.addText(weerData.regel ?? "geen data")
 t.font = Font.systemFont(FONT_SIZE)
 t.textColor = Color.white()
 t.lineLimit = 1
