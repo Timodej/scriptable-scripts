@@ -4,6 +4,14 @@
   "author": "Timodej",
   "scripts": [
     {
+      "name": "Timos-Scripts",
+      "file": "Timos-Scripts.js",
+      "description": "De script manager zelf. Update om nieuwe functies en bugfixes te krijgen.",
+      "version": "1.0",
+      "isSelf": true,
+      "settings": []
+    },
+    {
       "name": "Lockscreen-weer-datum",
       "file": "Lockscreen-weer-datum.js",
       "description": "Lockscreen widget die het weer toont op één regel. Temperatuur, weeremoji en regenvoorspelling.",
