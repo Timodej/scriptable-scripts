@@ -62,6 +62,7 @@
   "labelShowEndTime": "Eindtijd tonen",
   "labelAlignment": "Uitlijning",
   "labelDateFormat": "Datumweergave",
+  "labelTextStyle": "Tekststijl",
   "labelRegenDrempelKans": "Regendrempel kans (%)",
   "labelRegenDrempelMm": "Regendrempel (mm/uur)",
   "labelRegenMinimumMm": "Minimum bui (mm totaal)",
