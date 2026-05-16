@@ -19,16 +19,9 @@
       "langFile": "timoLanguage-weer.json",
       "settingsFile": "Lockscreen-weer-datum-settings.json",
       "settings": [
+        { "key": "language", "type": "language", "section": "Taal" },
         {
-          "key": "language",
-          "type": "language",
-          "section": "Taal"
-        },
-        {
-          "key": "openApp",
-          "type": "app",
-          "section": "Gedrag",
-          "label": "labelOpenApp",
+          "key": "openApp", "type": "app", "section": "Gedrag", "label": "labelOpenApp",
           "apps": [
             { "label": "Weeronline", "scheme": "weeronline" },
             { "label": "Buienradar", "scheme": "buienradar" },
@@ -38,10 +31,7 @@
           "default": "weeronline"
         },
         {
-          "key": "rainApi",
-          "type": "choice",
-          "section": "Regen",
-          "label": "labelRainApi",
+          "key": "rainApi", "type": "choice", "section": "Regen", "label": "labelRainApi",
           "choices": [
             { "label": "Open-Meteo 🌍", "value": "openmeteo" },
             { "label": "Buienradar 🇳🇱", "value": "buienradar" },
@@ -50,10 +40,7 @@
           "default": "openmeteo"
         },
         {
-          "key": "rainDisplay",
-          "type": "choice",
-          "section": "Regen",
-          "label": "labelRainDisplay",
+          "key": "rainDisplay", "type": "choice", "section": "Regen", "label": "labelRainDisplay",
           "choices": [
             { "label": "Wolkjes 🌧️🌧️🌧️", "value": "clouds" },
             { "label": "Millimeter 2.4mm", "value": "mm" }
@@ -61,57 +48,18 @@
           "default": "clouds"
         },
         {
-          "key": "rainTime",
-          "type": "choice",
-          "section": "Regen",
-          "label": "labelRainTime",
+          "key": "rainTime", "type": "choice", "section": "Regen", "label": "labelRainTime",
           "choices": [
             { "label": "Duur (45min / 1u+)", "value": "duration" },
             { "label": "Eindtijd (23:05)", "value": "endtime" }
           ],
           "default": "duration"
         },
-        {
-          "key": "regenDrempelKans",
-          "type": "number",
-          "section": "Regen",
-          "label": "labelRegenDrempelKans",
-          "default": 70,
-          "min": 10,
-          "max": 100
-        },
-        {
-          "key": "regenDrempelMm",
-          "type": "decimal",
-          "section": "Regen",
-          "label": "labelRegenDrempelMm",
-          "default": 0.2
-        },
-        {
-          "key": "regenMinimumMm",
-          "type": "decimal",
-          "section": "Regen",
-          "label": "labelRegenMinimumMm",
-          "default": 0.5
-        },
-        {
-          "key": "dichtbijUren",
-          "type": "number",
-          "section": "Regen",
-          "label": "labelDichtbijUren",
-          "default": 3,
-          "min": 1,
-          "max": 12
-        },
-        {
-          "key": "fontSize",
-          "type": "number",
-          "section": "Weergave",
-          "label": "labelFontSize",
-          "default": 10,
-          "min": 8,
-          "max": 16
-        }
+        { "key": "regenDrempelKans", "type": "number", "section": "Regen", "label": "labelRegenDrempelKans", "default": 70, "min": 10, "max": 100 },
+        { "key": "regenDrempelMm", "type": "decimal", "section": "Regen", "label": "labelRegenDrempelMm", "default": 0.2 },
+        { "key": "regenMinimumMm", "type": "decimal", "section": "Regen", "label": "labelRegenMinimumMm", "default": 0.5 },
+        { "key": "dichtbijUren", "type": "number", "section": "Regen", "label": "labelDichtbijUren", "default": 3, "min": 1, "max": 12 },
+        { "key": "fontSize", "type": "number", "section": "Weergave", "label": "labelFontSize", "default": 10, "min": 8, "max": 16 }
       ]
     },
     {
@@ -122,16 +70,9 @@
       "langFile": "timoLanguage-upcoming.json",
       "settingsFile": "Lockscreen-upcoming-left-settings.json",
       "settings": [
+        { "key": "language", "type": "language", "section": "Taal" },
         {
-          "key": "language",
-          "type": "language",
-          "section": "Taal"
-        },
-        {
-          "key": "openApp",
-          "type": "app",
-          "section": "Gedrag",
-          "label": "labelOpenApp",
+          "key": "openApp", "type": "app", "section": "Gedrag", "label": "labelOpenApp",
           "apps": [
             { "label": "Reminders", "scheme": "x-apple-reminderkit" },
             { "label": "WeekCal", "scheme": "weekcal" },
@@ -141,45 +82,27 @@
           ],
           "default": "x-apple-reminderkit"
         },
+        { "key": "calendars", "type": "calendars", "section": "Agenda", "label": "labelCalendars" },
+        { "key": "daysAhead", "type": "number", "section": "Agenda", "label": "labelDaysAhead", "default": 7, "min": 1, "max": 30 },
+        { "key": "listItems", "type": "number", "section": "Weergave", "label": "labelListItems", "default": 6, "min": 1, "max": 10 },
+        { "key": "fontSize", "type": "number", "section": "Weergave", "label": "labelFontSize", "default": 10, "min": 8, "max": 16 },
+        { "key": "showEndTime", "type": "boolean", "section": "Weergave", "label": "labelShowEndTime", "default": false },
         {
-          "key": "calendars",
-          "type": "calendars",
-          "section": "Agenda",
-          "label": "labelCalendars"
+          "key": "dateFormat", "type": "choice", "section": "Weergave", "label": "labelDateFormat",
+          "choices": [
+            { "label": "12-5", "value": "date" },
+            { "label": "Ma (afgekort)", "value": "short" },
+            { "label": "Maandag (volledig)", "value": "full" }
+          ],
+          "default": "date"
         },
         {
-          "key": "daysAhead",
-          "type": "number",
-          "section": "Agenda",
-          "label": "labelDaysAhead",
-          "default": 7,
-          "min": 1,
-          "max": 30
-        },
-        {
-          "key": "listItems",
-          "type": "number",
-          "section": "Weergave",
-          "label": "labelListItems",
-          "default": 6,
-          "min": 1,
-          "max": 10
-        },
-        {
-          "key": "fontSize",
-          "type": "number",
-          "section": "Weergave",
-          "label": "labelFontSize",
-          "default": 10,
-          "min": 8,
-          "max": 16
-        },
-        {
-          "key": "showEndTime",
-          "type": "boolean",
-          "section": "Weergave",
-          "label": "labelShowEndTime",
-          "default": false
+          "key": "alignment", "type": "choice", "section": "Weergave", "label": "labelAlignment",
+          "choices": [
+            { "label": "Links", "value": "left" },
+            { "label": "Rechts", "value": "right" }
+          ],
+          "default": "left"
         }
       ]
     },
@@ -191,16 +114,9 @@
       "langFile": "timoLanguage-upcoming.json",
       "settingsFile": "Lockscreen-upcoming-right-settings.json",
       "settings": [
+        { "key": "language", "type": "language", "section": "Taal" },
         {
-          "key": "language",
-          "type": "language",
-          "section": "Taal"
-        },
-        {
-          "key": "openApp",
-          "type": "app",
-          "section": "Gedrag",
-          "label": "labelOpenApp",
+          "key": "openApp", "type": "app", "section": "Gedrag", "label": "labelOpenApp",
           "apps": [
             { "label": "WeekCal", "scheme": "weekcal" },
             { "label": "Fantastical", "scheme": "fantastical2" },
@@ -210,45 +126,27 @@
           ],
           "default": "weekcal"
         },
+        { "key": "calendars", "type": "calendars", "section": "Agenda", "label": "labelCalendars" },
+        { "key": "daysAhead", "type": "number", "section": "Agenda", "label": "labelDaysAhead", "default": 7, "min": 1, "max": 30 },
+        { "key": "listItems", "type": "number", "section": "Weergave", "label": "labelListItems", "default": 6, "min": 1, "max": 10 },
+        { "key": "fontSize", "type": "number", "section": "Weergave", "label": "labelFontSize", "default": 10, "min": 8, "max": 16 },
+        { "key": "showEndTime", "type": "boolean", "section": "Weergave", "label": "labelShowEndTime", "default": false },
         {
-          "key": "calendars",
-          "type": "calendars",
-          "section": "Agenda",
-          "label": "labelCalendars"
+          "key": "dateFormat", "type": "choice", "section": "Weergave", "label": "labelDateFormat",
+          "choices": [
+            { "label": "12-5", "value": "date" },
+            { "label": "Ma (afgekort)", "value": "short" },
+            { "label": "Maandag (volledig)", "value": "full" }
+          ],
+          "default": "date"
         },
         {
-          "key": "daysAhead",
-          "type": "number",
-          "section": "Agenda",
-          "label": "labelDaysAhead",
-          "default": 7,
-          "min": 1,
-          "max": 30
-        },
-        {
-          "key": "listItems",
-          "type": "number",
-          "section": "Weergave",
-          "label": "labelListItems",
-          "default": 6,
-          "min": 1,
-          "max": 10
-        },
-        {
-          "key": "fontSize",
-          "type": "number",
-          "section": "Weergave",
-          "label": "labelFontSize",
-          "default": 10,
-          "min": 8,
-          "max": 16
-        },
-        {
-          "key": "showEndTime",
-          "type": "boolean",
-          "section": "Weergave",
-          "label": "labelShowEndTime",
-          "default": false
+          "key": "alignment", "type": "choice", "section": "Weergave", "label": "labelAlignment",
+          "choices": [
+            { "label": "Links", "value": "left" },
+            { "label": "Rechts", "value": "right" }
+          ],
+          "default": "left"
         }
       ]
     }
