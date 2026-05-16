@@ -5,47 +5,29 @@
 // Lock Screen Widget deel 1: Reminders + eerste Events
 // ===============================
 
-// ===============================
-// DEFAULTS
-// ===============================
 const DEFAULT_LIST_ITEMS = 6
 const DEFAULT_FONT_SIZE = 10
 const DEFAULT_DAYS_AHEAD = 7
 const DEFAULT_SHOW_END_TIME = false
 const DEFAULT_ALIGNMENT = "left"
 const DEFAULT_DATE_FORMAT = "date"
+const DEFAULT_TEXT_STYLE = "color"
 const SETTINGS_FILE = "Lockscreen-upcoming-left-settings.json"
 const SHOWN_FILE = "calendarWidgetShown.json"
 const LANG_FILE = "timoLanguage-upcoming.json"
 
-// ===============================
-// PARAMETERS
-// ===============================
 const params = args.widgetParameter ? JSON.parse(args.widgetParameter) : {}
 const ACTION = params.action ?? "open"
 
-// ===============================
-// FILE SYSTEM
-// ===============================
 let fm
-try {
-  fm = FileManager.iCloud()
-} catch (e) {
-  fm = FileManager.local()
-}
+try { fm = FileManager.iCloud() } catch (e) { fm = FileManager.local() }
 const settingsPath = fm.joinPath(fm.documentsDirectory(), SETTINGS_FILE)
 const shownPath = fm.joinPath(fm.documentsDirectory(), SHOWN_FILE)
 const langPath = fm.joinPath(fm.documentsDirectory(), LANG_FILE)
 
-// ===============================
-// TAAL EN INSTELLINGEN
-// ===============================
 const lang = loadLang()
 const settings = loadSettings()
 
-// ===============================
-// APP OPENEN / PREVIEW
-// ===============================
 let shouldPreview = false
 
 if (config.runsInApp) {
@@ -69,19 +51,14 @@ if (!config.runsInWidget && !config.runsInAccessoryWidget && !shouldPreview) {
   return
 }
 
-// ===============================
-// DISPLAY VALUES
-// ===============================
 const MAX_ITEMS = settings.listItems ?? DEFAULT_LIST_ITEMS
 const FONT_SIZE = settings.fontSize ?? DEFAULT_FONT_SIZE
 const DAYS_AHEAD = settings.daysAhead ?? DEFAULT_DAYS_AHEAD
 const SHOW_END_TIME = settings.showEndTime ?? DEFAULT_SHOW_END_TIME
 const ALIGNMENT = settings.alignment ?? DEFAULT_ALIGNMENT
 const DATE_FORMAT = settings.dateFormat ?? DEFAULT_DATE_FORMAT
+const TEXT_STYLE = settings.textStyle ?? DEFAULT_TEXT_STYLE
 
-// ===============================
-// DATE RANGE
-// ===============================
 const now = new Date()
 const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
 const startTime = now
@@ -90,9 +67,6 @@ tomorrow.setDate(tomorrow.getDate() + 1)
 const endDate = new Date(startOfToday)
 endDate.setDate(endDate.getDate() + DAYS_AHEAD)
 
-// ===============================
-// CALENDAR EVENTS
-// ===============================
 const kalenders = settings.calendars ?? []
 let calendars = (await Calendar.forEvents()).filter(c => kalenders.includes(c.title))
 let calendarEvents = []
@@ -106,9 +80,6 @@ if (kalenders.length) {
     }))
 }
 
-// ===============================
-// REMINDERS
-// ===============================
 let reminders = await Reminder.allIncomplete()
 let undated = []
 let dated = []
@@ -117,16 +88,10 @@ for (let r of reminders) {
   if (!r.dueDate) {
     undated.push({ title: r.title, type: "undated" })
   } else if (r.dueDate >= startTime && r.dueDate <= endDate) {
-    dated.push({
-      title: r.title, date: r.dueDate,
-      isAllDay: !r.dueDateIncludesTime, type: "reminder"
-    })
+    dated.push({ title: r.title, date: r.dueDate, isAllDay: !r.dueDateIncludesTime, type: "reminder" })
   }
 }
 
-// ===============================
-// MERGE & SORT
-// ===============================
 let reminderItems = [...undated, ...dated]
 let reminderCount = Math.min(reminderItems.length, MAX_ITEMS)
 let remainingSlots = MAX_ITEMS - reminderCount
@@ -137,8 +102,34 @@ let items = [...reminderItems.slice(0, reminderCount), ...eventItems]
 fm.writeString(shownPath, JSON.stringify({ shownEventCount }))
 
 // ===============================
-// BUILD WIDGET
+// TEKSTSTIJL HELPERS
 // ===============================
+function getStijl(isHuidig) {
+  // isHuidig = vandaag of morgen
+  switch (TEXT_STYLE) {
+    case "bold":
+      return {
+        font: isHuidig ? Font.boldSystemFont(FONT_SIZE) : Font.systemFont(FONT_SIZE),
+        color: Color.white()
+      }
+    case "size":
+      return {
+        font: isHuidig ? Font.systemFont(FONT_SIZE + 1) : Font.systemFont(FONT_SIZE - 1),
+        color: Color.white()
+      }
+    case "boldcolor":
+      return {
+        font: isHuidig ? Font.boldSystemFont(FONT_SIZE) : Font.systemFont(FONT_SIZE),
+        color: isHuidig ? Color.white() : new Color("#aaaaaa")
+      }
+    default: // "color"
+      return {
+        font: Font.systemFont(FONT_SIZE),
+        color: isHuidig ? Color.white() : Color.gray()
+      }
+  }
+}
+
 let widget = new ListWidget()
 widget.setPadding(6, 6, 6, 6)
 
@@ -157,18 +148,21 @@ if (!kalenders.length) {
       if (item.type === "reminder" && item.date) {
         let isToday = isSameDay(item.date, startOfToday)
         let isTomorrow = isSameDay(item.date, tomorrow)
+        let isHuidig = isToday || isTomorrow
+        let stijl = getStijl(isHuidig)
         let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDatum(item.date)
         let d = row.addText(label)
-        d.font = Font.systemFont(FONT_SIZE)
-        d.textColor = Color.white()
+        d.font = stijl.font
+        d.textColor = stijl.color
         let t = row.addText(" " + item.title)
-        t.font = Font.systemFont(FONT_SIZE)
-        t.textColor = Color.white()
+        t.font = stijl.font
+        t.textColor = stijl.color
         t.lineLimit = 1
       } else {
+        let stijl = getStijl(true) // undated reminders altijd primaire stijl
         let t = row.addText(item.title)
-        t.font = Font.systemFont(FONT_SIZE)
-        t.textColor = Color.white()
+        t.font = stijl.font
+        t.textColor = stijl.color
         t.lineLimit = 1
       }
       continue
@@ -176,7 +170,8 @@ if (!kalenders.length) {
 
     let isToday = isSameDay(item.date, startOfToday)
     let isTomorrow = isSameDay(item.date, tomorrow)
-    let color = isToday ? Color.white() : Color.gray()
+    let isHuidig = isToday || isTomorrow
+    let stijl = getStijl(isHuidig)
 
     let row = widget.addStack()
     row.spacing = 4
@@ -184,27 +179,24 @@ if (!kalenders.length) {
 
     let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDatum(item.date)
     let d = row.addText(label)
-    d.font = Font.systemFont(FONT_SIZE)
-    d.textColor = color
+    d.font = stijl.font
+    d.textColor = stijl.color
 
-    if (!item.isAllDay && (isToday || isTomorrow)) {
+    if (!item.isAllDay && isHuidig) {
       let timeString = formatTime(item.date)
       if (SHOW_END_TIME && item.endDate) timeString += "–" + formatTime(item.endDate)
       let t = row.addText(" " + timeString)
-      t.font = Font.systemFont(FONT_SIZE)
-      t.textColor = color
+      t.font = stijl.font
+      t.textColor = stijl.color
     }
 
     let title = row.addText(" " + item.title)
-    title.font = Font.systemFont(FONT_SIZE)
-    title.textColor = color
+    title.font = stijl.font
+    title.textColor = stijl.color
     title.lineLimit = 1
   }
 }
 
-// ===============================
-// DISPLAY
-// ===============================
 if (config.runsInWidget || config.runsInAccessoryWidget) {
   Script.setWidget(widget)
 } else {
@@ -212,16 +204,11 @@ if (config.runsInWidget || config.runsInAccessoryWidget) {
 }
 Script.complete()
 
-// ===============================
-// FUNCTIES
-// ===============================
 function loadLang() {
   const fallback = {
     today: "Vandaag", tomorrow: "Morgen",
     noCalendarsSelected: "Geen agenda's geselecteerd",
     noFurtherEvents: "Geen verdere events",
-    cancel: "Annuleer", on: "Aan", off: "Uit",
-    months: ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
     daysShort: ["Zo","Ma","Di","Wo","Do","Vr","Za"],
     daysFull: ["Zondag","Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag"]
   }
@@ -231,10 +218,10 @@ function loadLang() {
 
 function loadSettings() {
   const defaults = {
-    calendars: [], listItems: DEFAULT_LIST_ITEMS,
-    fontSize: DEFAULT_FONT_SIZE, daysAhead: DEFAULT_DAYS_AHEAD,
-    showEndTime: DEFAULT_SHOW_END_TIME, openApp: "x-apple-reminderkit",
-    alignment: DEFAULT_ALIGNMENT, dateFormat: DEFAULT_DATE_FORMAT
+    calendars: [], listItems: DEFAULT_LIST_ITEMS, fontSize: DEFAULT_FONT_SIZE,
+    daysAhead: DEFAULT_DAYS_AHEAD, showEndTime: DEFAULT_SHOW_END_TIME,
+    openApp: "x-apple-reminderkit", alignment: DEFAULT_ALIGNMENT,
+    dateFormat: DEFAULT_DATE_FORMAT, textStyle: DEFAULT_TEXT_STYLE
   }
   if (!fm.fileExists(settingsPath)) return defaults
   try { return Object.assign(defaults, JSON.parse(fm.readString(settingsPath))) } catch { return defaults }
