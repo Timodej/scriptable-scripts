@@ -88,6 +88,16 @@
         { "key": "fontSize", "type": "number", "section": "Weergave", "label": "labelFontSize", "default": 10, "min": 8, "max": 16 },
         { "key": "showEndTime", "type": "boolean", "section": "Weergave", "label": "labelShowEndTime", "default": false },
         {
+          "key": "textStyle", "type": "choice", "section": "Weergave", "label": "labelTextStyle",
+          "choices": [
+            { "label": "Wit / Grijs", "value": "color" },
+            { "label": "Bold / Normaal wit", "value": "bold" },
+            { "label": "Groter / Kleiner", "value": "size" },
+            { "label": "Bold wit / Lichtgrijs", "value": "boldcolor" }
+          ],
+          "default": "color"
+        },
+        {
           "key": "dateFormat", "type": "choice", "section": "Weergave", "label": "labelDateFormat",
           "choices": [
             { "label": "12-5", "value": "date" },
@@ -131,6 +141,16 @@
         { "key": "listItems", "type": "number", "section": "Weergave", "label": "labelListItems", "default": 6, "min": 1, "max": 10 },
         { "key": "fontSize", "type": "number", "section": "Weergave", "label": "labelFontSize", "default": 10, "min": 8, "max": 16 },
         { "key": "showEndTime", "type": "boolean", "section": "Weergave", "label": "labelShowEndTime", "default": false },
+        {
+          "key": "textStyle", "type": "choice", "section": "Weergave", "label": "labelTextStyle",
+          "choices": [
+            { "label": "Wit / Grijs", "value": "color" },
+            { "label": "Bold / Normaal wit", "value": "bold" },
+            { "label": "Groter / Kleiner", "value": "size" },
+            { "label": "Bold wit / Lichtgrijs", "value": "boldcolor" }
+          ],
+          "default": "color"
+        },
         {
           "key": "dateFormat", "type": "choice", "section": "Weergave", "label": "labelDateFormat",
           "choices": [
