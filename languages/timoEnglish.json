@@ -11,7 +11,8 @@
   "until": "until",
   "still": "still",
   "months": ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"],
-  "days": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  "daysShort": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  "daysFull": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
   "updatesAvailable": "Updates available",
   "installed": "Installed",
   "available": "Available",
@@ -59,6 +60,8 @@
   "labelListItems": "Max. items",
   "labelFontSize": "Font size",
   "labelShowEndTime": "Show end time",
+  "labelAlignment": "Alignment",
+  "labelDateFormat": "Date format",
   "labelRegenDrempelKans": "Rain threshold (%)",
   "labelRegenDrempelMm": "Rain threshold (mm/hr)",
   "labelRegenMinimumMm": "Minimum shower (mm total)",
@@ -72,5 +75,7 @@
   "cacheGewist": "Cache cleared.",
   "unsavedChanges": "You have unsaved changes.",
   "saveChanges": "Save",
-  "discardChanges": "Discard"
+  "discardChanges": "Discard",
+  "managerUpdate": "Manager update available",
+  "restartManager": "Restart Timo's Scripts to activate the update."
 }

@@ -11,7 +11,8 @@
   "until": "tot",
   "still": "nog",
   "months": ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"],
-  "days": ["Zo", "Ma", "Di", "Wo", "Do", "Vr", "Za"],
+  "daysShort": ["Zo", "Ma", "Di", "Wo", "Do", "Vr", "Za"],
+  "daysFull": ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"],
   "updatesAvailable": "Updates beschikbaar",
   "installed": "Geïnstalleerd",
   "available": "Beschikbaar",
@@ -59,6 +60,8 @@
   "labelListItems": "Max. items",
   "labelFontSize": "Lettergrootte",
   "labelShowEndTime": "Eindtijd tonen",
+  "labelAlignment": "Uitlijning",
+  "labelDateFormat": "Datumweergave",
   "labelRegenDrempelKans": "Regendrempel kans (%)",
   "labelRegenDrempelMm": "Regendrempel (mm/uur)",
   "labelRegenMinimumMm": "Minimum bui (mm totaal)",
@@ -72,5 +75,7 @@
   "cacheGewist": "Cache gewist.",
   "unsavedChanges": "Je hebt onopgeslagen wijzigingen.",
   "saveChanges": "Opslaan",
-  "discardChanges": "Niet opslaan"
+  "discardChanges": "Niet opslaan",
+  "managerUpdate": "Manager update beschikbaar",
+  "restartManager": "Herstart Timo's Scripts om de update te activeren."
 }
