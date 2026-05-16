@@ -12,6 +12,8 @@ const DEFAULT_LIST_ITEMS = 6
 const DEFAULT_FONT_SIZE = 10
 const DEFAULT_DAYS_AHEAD = 7
 const DEFAULT_SHOW_END_TIME = false
+const DEFAULT_ALIGNMENT = "left"
+const DEFAULT_DATE_FORMAT = "date"
 const SETTINGS_FILE = "Lockscreen-upcoming-left-settings.json"
 const SHOWN_FILE = "calendarWidgetShown.json"
 const LANG_FILE = "timoLanguage-upcoming.json"
@@ -36,13 +38,9 @@ const shownPath = fm.joinPath(fm.documentsDirectory(), SHOWN_FILE)
 const langPath = fm.joinPath(fm.documentsDirectory(), LANG_FILE)
 
 // ===============================
-// TAAL LADEN
+// TAAL EN INSTELLINGEN
 // ===============================
 const lang = loadLang()
-
-// ===============================
-// LOAD SETTINGS
-// ===============================
 const settings = loadSettings()
 
 // ===============================
@@ -78,6 +76,8 @@ const MAX_ITEMS = settings.listItems ?? DEFAULT_LIST_ITEMS
 const FONT_SIZE = settings.fontSize ?? DEFAULT_FONT_SIZE
 const DAYS_AHEAD = settings.daysAhead ?? DEFAULT_DAYS_AHEAD
 const SHOW_END_TIME = settings.showEndTime ?? DEFAULT_SHOW_END_TIME
+const ALIGNMENT = settings.alignment ?? DEFAULT_ALIGNMENT
+const DATE_FORMAT = settings.dateFormat ?? DEFAULT_DATE_FORMAT
 
 // ===============================
 // DATE RANGE
@@ -148,13 +148,16 @@ if (!kalenders.length) {
   t.textColor = Color.gray()
 } else {
   for (let item of items) {
+
     if (item.type === "undated" || item.type === "reminder") {
       let row = widget.addStack()
-      row.spacing = 6
+      row.spacing = 4
+      if (ALIGNMENT === "right") row.addSpacer()
+
       if (item.type === "reminder" && item.date) {
         let isToday = isSameDay(item.date, startOfToday)
         let isTomorrow = isSameDay(item.date, tomorrow)
-        let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDate(item.date)
+        let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDatum(item.date)
         let d = row.addText(label)
         d.font = Font.systemFont(FONT_SIZE)
         d.textColor = Color.white()
@@ -174,9 +177,12 @@ if (!kalenders.length) {
     let isToday = isSameDay(item.date, startOfToday)
     let isTomorrow = isSameDay(item.date, tomorrow)
     let color = isToday ? Color.white() : Color.gray()
+
     let row = widget.addStack()
-    row.spacing = 6
-    let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDate(item.date)
+    row.spacing = 4
+    if (ALIGNMENT === "right") row.addSpacer()
+
+    let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDatum(item.date)
     let d = row.addText(label)
     d.font = Font.systemFont(FONT_SIZE)
     d.textColor = color
@@ -216,7 +222,8 @@ function loadLang() {
     noFurtherEvents: "Geen verdere events",
     cancel: "Annuleer", on: "Aan", off: "Uit",
     months: ["jan","feb","mrt","apr","mei","jun","jul","aug","sep","okt","nov","dec"],
-    days: ["Zo","Ma","Di","Wo","Do","Vr","Za"]
+    daysShort: ["Zo","Ma","Di","Wo","Do","Vr","Za"],
+    daysFull: ["Zondag","Maandag","Dinsdag","Woensdag","Donderdag","Vrijdag","Zaterdag"]
   }
   if (!fm.fileExists(langPath)) return fallback
   try { return Object.assign(fallback, JSON.parse(fm.readString(langPath))) } catch { return fallback }
@@ -226,7 +233,8 @@ function loadSettings() {
   const defaults = {
     calendars: [], listItems: DEFAULT_LIST_ITEMS,
     fontSize: DEFAULT_FONT_SIZE, daysAhead: DEFAULT_DAYS_AHEAD,
-    showEndTime: DEFAULT_SHOW_END_TIME, openApp: "x-apple-reminderkit"
+    showEndTime: DEFAULT_SHOW_END_TIME, openApp: "x-apple-reminderkit",
+    alignment: DEFAULT_ALIGNMENT, dateFormat: DEFAULT_DATE_FORMAT
   }
   if (!fm.fileExists(settingsPath)) return defaults
   try { return Object.assign(defaults, JSON.parse(fm.readString(settingsPath))) } catch { return defaults }
@@ -238,7 +246,9 @@ function isSameDay(a, b) {
     && a.getDate() === b.getDate()
 }
 
-function formatDate(d) {
+function formatDatum(d) {
+  if (DATE_FORMAT === "short") return lang.daysShort[d.getDay()]
+  if (DATE_FORMAT === "full") return lang.daysFull[d.getDay()]
   return `${d.getDate()}-${d.getMonth() + 1}`
 }
 
