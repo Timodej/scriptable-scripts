@@ -62,6 +62,7 @@
   "labelShowEndTime": "Show end time",
   "labelAlignment": "Alignment",
   "labelDateFormat": "Date format",
+  "labelTextStyle": "Text style",
   "labelRegenDrempelKans": "Rain threshold (%)",
   "labelRegenDrempelMm": "Rain threshold (mm/hr)",
   "labelRegenMinimumMm": "Minimum shower (mm total)",
