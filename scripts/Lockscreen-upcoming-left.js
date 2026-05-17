@@ -148,7 +148,7 @@ if (!kalenders.length) {
       if (item.type === "reminder" && item.date) {
         let isToday = isSameDay(item.date, startOfToday)
         let isTomorrow = isSameDay(item.date, tomorrow)
-        let isHuidig = isToday || isTomorrow
+        let isHuidig = isToday
         let stijl = getStijl(isHuidig)
         let label = isToday ? lang.today : isTomorrow ? lang.tomorrow : formatDatum(item.date)
         let d = row.addText(label)
@@ -170,7 +170,7 @@ if (!kalenders.length) {
 
     let isToday = isSameDay(item.date, startOfToday)
     let isTomorrow = isSameDay(item.date, tomorrow)
-    let isHuidig = isToday || isTomorrow
+    let isHuidig = isToday
     let stijl = getStijl(isHuidig)
 
     let row = widget.addStack()
