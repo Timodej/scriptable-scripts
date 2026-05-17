@@ -81,7 +81,8 @@ function vertaalSectie(sectie) {
     "Taal": lang.sectionTaal, "Gedrag": lang.sectionGedrag,
     "Agenda": lang.sectionAgenda, "Weergave": lang.sectionWeergave,
     "Regen": lang.sectionRegen, "Overig": lang.sectionOverig,
-    "Weer": lang.sectionWeer ?? "Weer", "Tijdas": lang.sectionTijdas ?? "Tijdas"
+    "Weer": lang.sectionWeer ?? "Weer", "Tijdas": lang.sectionTijdas ?? "Tijdas",
+    "Achtergrond": lang.sectionAchtergrond ?? "Achtergrond"
   }
   return map[sectie] ?? sectie
 }
@@ -102,6 +103,8 @@ function vertaalLabel(key) {
     "eindUur": lang.labelEindUur ?? "Eindtijd",
     "regenAlpha": lang.labelRegenAlpha ?? "Regen transparantie (%)",
     "zonAlpha": lang.labelZonAlpha ?? "Zon transparantie (%)",
+    "bgKleur": lang.labelBgKleur ?? "Achtergrondkleur",
+    "bgAlpha": lang.labelBgAlpha ?? "Transparantie (%)",
     "textStyle": lang.labelTextStyle, "dateFormat": lang.labelDateFormat,
     "alignment": lang.labelAlignment
   }
