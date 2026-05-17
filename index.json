@@ -20,6 +20,18 @@
       "settingsFile": "weekCalWidget-settings.json",
       "settings": [
         { "key": "language", "type": "language", "section": "Taal" },
+        {
+          "key": "openApp", "type": "app", "section": "Gedrag", "label": "labelOpenApp",
+          "apps": [
+            { "label": "WeekCal", "scheme": "weekcal" },
+            { "label": "Fantastical", "scheme": "fantastical2" },
+            { "label": "Apple Agenda", "scheme": "calshow" },
+            { "label": "Weeronline", "scheme": "weeronline" },
+            { "label": "Buienradar", "scheme": "buienradar" },
+            { "label": "Overig", "scheme": "custom" }
+          ],
+          "default": "weekcal"
+        },
         { "key": "calendars", "type": "calendars", "section": "Agenda", "label": "labelCalendars" },
         {
           "key": "begindag", "type": "choice", "section": "Agenda", "label": "labelBegindag",
