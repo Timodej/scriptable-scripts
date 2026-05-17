@@ -133,7 +133,7 @@ if (!kalenders.length) {
   for (let item of items) {
     let isToday = isSameDay(item.date, startOfToday)
     let isTomorrow = isSameDay(item.date, tomorrow)
-    let isHuidig = isToday || isTomorrow
+    let isHuidig = isToday
     let stijl = getStijl(isHuidig)
 
     let row = widget.addStack()
