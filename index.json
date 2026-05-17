@@ -42,8 +42,24 @@
           ],
           "default": "openmeteo"
         },
-        { "key": "regenAlpha", "type": "number", "section": "Weer", "label": "labelRegenAlpha", "default": 40, "min": 10, "max": 90 },
-        { "key": "zonAlpha", "type": "number", "section": "Weer", "label": "labelZonAlpha", "default": 40, "min": 10, "max": 90 }
+        { "key": "regenAlpha", "type": "number", "section": "Weer", "label": "labelRegenAlpha", "default": 55, "min": 10, "max": 90 },
+        { "key": "zonAlpha", "type": "number", "section": "Weer", "label": "labelZonAlpha", "default": 45, "min": 10, "max": 90 },
+        {
+          "key": "bgKleur", "type": "choice", "section": "Achtergrond", "label": "labelBgKleur",
+          "choices": [
+            { "label": "Middernachtblauw", "value": "#16213e" },
+            { "label": "Zwart", "value": "#000000" },
+            { "label": "Donker grijs", "value": "#1c1c1e" },
+            { "label": "Donker groen", "value": "#1a2f1a" },
+            { "label": "Donker paars", "value": "#1a1a2e" },
+            { "label": "Wit", "value": "#ffffff" },
+            { "label": "Lichtgrijs", "value": "#f2f2f7" },
+            { "label": "Zandkleur", "value": "#f5e6c8" },
+            { "label": "Lichtblauw", "value": "#e8f4f8" }
+          ],
+          "default": "#16213e"
+        },
+        { "key": "bgAlpha", "type": "number", "section": "Achtergrond", "label": "labelBgAlpha", "default": 95, "min": 0, "max": 100 }
       ]
     },
     {
@@ -196,7 +212,7 @@
           "default": "date"
         },
         {
-          "key": "alignment", "type": "choice", "section": "Weergave", "label": "labelOpenApp",
+          "key": "alignment", "type": "choice", "section": "Weergave", "label": "labelAlignment",
           "choices": [
             { "label": "Links", "value": "left" },
             { "label": "Rechts", "value": "right" }
