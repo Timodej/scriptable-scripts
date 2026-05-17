@@ -54,8 +54,8 @@
           ],
           "default": "openmeteo"
         },
-        { "key": "regenAlpha", "type": "number", "section": "Weer", "label": "labelRegenAlpha", "default": 55, "min": 10, "max": 90 },
-        { "key": "zonAlpha", "type": "number", "section": "Weer", "label": "labelZonAlpha", "default": 45, "min": 10, "max": 90 },
+        { "key": "voorAlpha", "type": "number", "section": "Weer", "label": "labelVoorAlpha", "default": 60, "min": 10, "max": 90 },
+        { "key": "achterAlpha", "type": "number", "section": "Weer", "label": "labelAchterAlpha", "default": 35, "min": 10, "max": 90 },
         {
           "key": "bgKleur", "type": "choice", "section": "Achtergrond", "label": "labelBgKleur",
           "choices": [
