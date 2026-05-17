@@ -47,8 +47,8 @@ const EIND_UUR = settings.eindUur ?? 24
 const MIN_DAGEN = settings.minDagen ?? 3
 const MAX_DAGEN = settings.maxDagen ?? 7
 const BEGINDAG = settings.begindag ?? "today"
-const REGEN_ALPHA = (settings.regenAlpha ?? 55) / 100
-const ZON_ALPHA = (settings.zonAlpha ?? 45) / 100
+const VOOR_ALPHA = (settings.voorAlpha ?? 60) / 100   // voorste (kleinste) laag
+const ACHTER_ALPHA = (settings.achterAlpha ?? 35) / 100 // achterste (grootste) laag
 const BG_KLEUR = settings.bgKleur ?? "#16213e"
 const BG_ALPHA = (settings.bgAlpha ?? 95) / 100
 
@@ -155,11 +155,7 @@ for (let d = MIN_DAGEN; d <= MAX_DAGEN; d++) {
       break
     }
   }
-  if (passenEr) {
-    aantalDagen = d
-  } else {
-    break
-  }
+  if (passenEr) { aantalDagen = d } else { break }
 }
 
 const dagH = (beschikbaarH - aantalDagen * DAG_GAP) / aantalDagen
@@ -231,9 +227,15 @@ function getWeerUren(datum) {
 }
 
 // ===============================
+// BEREKEN TOTAAL PER DAG
+// Voor bepalen volgorde regen/zon
+// ===============================
+function totaalWaarde(dagUren, waardeFunc) {
+  return dagUren.reduce((som, u) => som + waardeFunc(u), 0)
+}
+
+// ===============================
 // TEKEN CURVE MET LIJN
-// Fix: lijn start één punt voor de drempel zodat
-// de overgang van 0 naar waarde vloeiend is
 // ===============================
 function tekenCurve(ctx, dagUren, dagY, dagH, waardeFunc, drempel, vulKleur, lijnKleur) {
   if (dagUren.length < 2) return
@@ -245,17 +247,13 @@ function tekenCurve(ctx, dagUren, dagY, dagH, waardeFunc, drempel, vulKleur, lij
     waarde: Math.min(waardeFunc(u), 1)
   }))
 
-  // ── Gevuld vlak ──
+  // Gevuld vlak
   const vlakPad = new Path()
   vlakPad.move(new Point(punten[0].x, bodem))
   vlakPad.addLine(new Point(punten[0].x, punten[0].y))
   for (let i = 1; i < punten.length; i++) {
     const cpX = (punten[i-1].x + punten[i].x) / 2
-    vlakPad.addCurve(
-      new Point(punten[i].x, punten[i].y),
-      new Point(cpX, punten[i-1].y),
-      new Point(cpX, punten[i].y)
-    )
+    vlakPad.addCurve(new Point(punten[i].x, punten[i].y), new Point(cpX, punten[i-1].y), new Point(cpX, punten[i].y))
   }
   const eindX = Math.min(punten[punten.length-1].x + tijdW / (EIND_UUR - START_UUR), W - PAD)
   vlakPad.addLine(new Point(eindX, bodem))
@@ -264,61 +262,40 @@ function tekenCurve(ctx, dagUren, dagY, dagH, waardeFunc, drempel, vulKleur, lij
   ctx.addPath(vlakPad)
   ctx.fillPath()
 
-  // ── Lijn ──
-  // Segmenten tekenen: inclusief één punt voor/na de drempel
-  // zodat de lijn vloeiend van de bodem omhoog loopt
+  // Lijn met vloeiende overgang bij drempel
   ctx.setStrokeColor(lijnKleur)
   ctx.setLineWidth(1.5)
 
   let segment = null
-
   for (let i = 0; i < punten.length; i++) {
     const bovenDrempel = punten[i].waarde > drempel
-
     if (bovenDrempel) {
       if (!segment) {
         segment = new Path()
-        // Begin één punt eerder voor vloeiende overgang
         if (i > 0) {
           segment.move(new Point(punten[i-1].x, punten[i-1].y))
           const cpX = (punten[i-1].x + punten[i].x) / 2
-          segment.addCurve(
-            new Point(punten[i].x, punten[i].y),
-            new Point(cpX, punten[i-1].y),
-            new Point(cpX, punten[i].y)
-          )
+          segment.addCurve(new Point(punten[i].x, punten[i].y), new Point(cpX, punten[i-1].y), new Point(cpX, punten[i].y))
         } else {
           segment.move(new Point(punten[i].x, punten[i].y))
         }
       } else {
         const cpX = (punten[i-1].x + punten[i].x) / 2
-        segment.addCurve(
-          new Point(punten[i].x, punten[i].y),
-          new Point(cpX, punten[i-1].y),
-          new Point(cpX, punten[i].y)
-        )
+        segment.addCurve(new Point(punten[i].x, punten[i].y), new Point(cpX, punten[i-1].y), new Point(cpX, punten[i].y))
       }
     } else {
       if (segment) {
-        // Eindig één punt verder voor vloeiende afronding
-        const cpX = (punten[i-1].x + punten[i].x) / 2
-        segment.addCurve(
-          new Point(punten[i].x, punten[i].y),
-          new Point(cpX, punten[i-1].y),
-          new Point(cpX, punten[i].y)
-        )
+        if (i < punten.length) {
+          const cpX = (punten[i-1].x + punten[i].x) / 2
+          segment.addCurve(new Point(punten[i].x, punten[i].y), new Point(cpX, punten[i-1].y), new Point(cpX, punten[i].y))
+        }
         ctx.addPath(segment)
         ctx.strokePath()
         segment = null
       }
     }
   }
-
-  // Teken eventueel laatste open segment
-  if (segment) {
-    ctx.addPath(segment)
-    ctx.strokePath()
-  }
+  if (segment) { ctx.addPath(segment); ctx.strokePath() }
 }
 
 // ===============================
@@ -382,7 +359,14 @@ for (let dagIdx = 0; dagIdx < aantalDagen; dagIdx++) {
   const isVandaag = isSameDay(datum, startOfToday)
   const dagEvents = berekenStapels(getEventsVoorDag(datum))
   const dagUren = getWeerUren(datum)
-  dagData.push({ datum, dagY, isVandaag, dagEvents, dagUren })
+
+  // Bepaal totaal regen vs zon voor volgorde
+  const totaalRegen = totaalWaarde(dagUren, p => p.mm / 4)
+  const totaalZon = totaalWaarde(dagUren, p => p.zon)
+  // Kleinste waarde komt bovenop (voorste laag)
+  const regenIsKleinste = totaalRegen <= totaalZon
+
+  dagData.push({ datum, dagY, isVandaag, dagEvents, dagUren, regenIsKleinste })
 }
 
 // ===============================
@@ -405,27 +389,27 @@ for (const { dagY, dagEvents, isVandaag } of dagData) {
 }
 
 // ===============================
-// LAAG 2: REGEN OVERLAY
+// LAAG 2 & 3: REGEN + ZON OVERLAY
+// Volgorde per dag bepaald door totaal:
+// kleinste waarde = voorste laag (bovenop)
+// grootste waarde = achterste laag (onderop)
 // ===============================
-for (const { dagY, dagUren } of dagData) {
+for (const { dagY, dagUren, regenIsKleinste } of dagData) {
   if (dagUren.length < 2) continue
-  tekenCurve(ctx, dagUren, dagY, dagH,
-    p => p.mm / 4, 0.02,
-    new Color("#4da6ff", REGEN_ALPHA),
-    new Color("#7ec8ff", 0.95)
-  )
-}
 
-// ===============================
-// LAAG 3: ZON OVERLAY
-// ===============================
-for (const { dagY, dagUren } of dagData) {
-  if (dagUren.length < 2) continue
-  tekenCurve(ctx, dagUren, dagY, dagH,
-    p => p.zon, 0.05,
-    new Color("#ffd700", ZON_ALPHA),
-    new Color("#ffe566", 0.95)
-  )
+  if (regenIsKleinste) {
+    // Zon is groter → zon achteraan, regen vooraan
+    tekenCurve(ctx, dagUren, dagY, dagH, p => p.zon, 0.05,
+      new Color("#ffd700", ACHTER_ALPHA), new Color("#ffe566", 0.95))
+    tekenCurve(ctx, dagUren, dagY, dagH, p => p.mm / 4, 0.02,
+      new Color("#4da6ff", VOOR_ALPHA), new Color("#7ec8ff", 0.95))
+  } else {
+    // Regen is groter → regen achteraan, zon vooraan
+    tekenCurve(ctx, dagUren, dagY, dagH, p => p.mm / 4, 0.02,
+      new Color("#4da6ff", ACHTER_ALPHA), new Color("#7ec8ff", 0.95))
+    tekenCurve(ctx, dagUren, dagY, dagH, p => p.zon, 0.05,
+      new Color("#ffd700", VOOR_ALPHA), new Color("#ffe566", 0.95))
+  }
 }
 
 // ===============================
@@ -488,7 +472,7 @@ function loadSettings() {
   const defaults = {
     calendars: [], startUur: 6, eindUur: 24,
     minDagen: 3, maxDagen: 7, begindag: "today",
-    regenAlpha: 55, zonAlpha: 45,
+    voorAlpha: 60, achterAlpha: 35,
     bgKleur: "#16213e", bgAlpha: 95,
     openApp: "weekcal", rainApi: "openmeteo"
   }
