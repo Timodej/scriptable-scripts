@@ -26,20 +26,18 @@ const EIND_UUR = settings.eindUur ?? 24
 const MIN_DAGEN = settings.minDagen ?? 3
 const MAX_DAGEN = settings.maxDagen ?? 7
 const BEGINDAG = settings.begindag ?? "today"
-const REGEN_ALPHA = (settings.regenAlpha ?? 35) / 100
-const ZON_ALPHA = (settings.zonAlpha ?? 30) / 100
+const REGEN_ALPHA = (settings.regenAlpha ?? 55) / 100
+const ZON_ALPHA = (settings.zonAlpha ?? 45) / 100
 const RAIN_API = settings.rainApi ?? "openmeteo"
 
 // ===============================
 // WIDGET AFMETINGEN
-// Large widget op iPhone is ~338x354 punten
 // ===============================
 const W = 338
 const H = 354
 const PAD = 6
-const HEADER_H = 18    // tijdas bovenaan
-const DAG_LABEL_W = 26 // breedte dagnaam links
-const LEGENDA_H = 14   // legenda onderaan
+const HEADER_H = 18
+const DAG_LABEL_W = 26
 
 // ===============================
 // DATUMBEREIK
@@ -86,7 +84,6 @@ function getEventsVoorDag(datum) {
   dagEind.setDate(dagEind.getDate() + 1)
   return alleEvents.filter(e => {
     if (e.startDate >= dagEind || e.endDate <= dagStart) return false
-    // Filter events die volledig buiten tijdas vallen (niet all-day)
     if (!e.isAllDay) {
       const startU = e.startDate.getHours() + e.startDate.getMinutes() / 60
       const eindU = e.endDate.getHours() + e.endDate.getMinutes() / 60
@@ -96,7 +93,6 @@ function getEventsVoorDag(datum) {
   })
 }
 
-// Bereken maximale gelijktijdige events per dag
 function maxGelijktijdig(events) {
   if (events.length === 0) return 0
   if (events.length === 1) return 1
@@ -119,8 +115,8 @@ function maxGelijktijdig(events) {
 // ===============================
 // BEPAAL OPTIMAAL AANTAL DAGEN
 // ===============================
-const beschikbaarH = H - PAD * 2 - HEADER_H - LEGENDA_H - PAD
-const MIN_EVENT_H = 11  // minimale eventhoogte voor leesbaarheid
+const beschikbaarH = H - PAD * 2 - HEADER_H
+const MIN_EVENT_H = 11
 
 let aantalDagen = MIN_DAGEN
 for (let d = MIN_DAGEN; d <= MAX_DAGEN; d++) {
@@ -131,8 +127,7 @@ for (let d = MIN_DAGEN; d <= MAX_DAGEN; d++) {
     datum.setDate(datum.getDate() + i)
     const evs = getEventsVoorDag(datum)
     const stapel = maxGelijktijdig(evs)
-    const eventH = dagH / Math.max(1, stapel)
-    if (eventH < MIN_EVENT_H && stapel > 1) {
+    if (dagH / Math.max(1, stapel) < MIN_EVENT_H && stapel > 1) {
       passenEr = false
       break
     }
@@ -149,6 +144,7 @@ const tijdW = W - PAD * 2 - DAG_LABEL_W
 
 // ===============================
 // WEERDATA OPHALEN
+// Altijd MAX_DAGEN + 1 ophalen zodat alle dagen data hebben
 // ===============================
 let weerCache = loadCache()
 const cacheLeeftijd = weerCache ? (now.getTime() - weerCache.timestamp) / 1000 / 60 : 999
@@ -158,7 +154,8 @@ if (cacheLeeftijd > 30) {
     const loc = await Location.current()
     const lat = loc.latitude.toFixed(4)
     const lon = loc.longitude.toFixed(4)
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=precipitation,sunshine_duration,precipitation_probability&forecast_days=${aantalDagen + 1}&timezone=auto`
+    // Altijd MAX_DAGEN + 1 zodat alle mogelijke dagen gedekt zijn
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=precipitation,sunshine_duration,precipitation_probability&forecast_days=${MAX_DAGEN + 1}&timezone=auto`
     const req = new Request(url)
     const json = await req.loadJSON()
     weerCache = {
@@ -193,7 +190,7 @@ function urenNaarX(startU, eindU) {
 }
 
 // ===============================
-// WEER OVERLAY DATA VOOR DAG
+// WEER UURDATA VOOR DAG
 // ===============================
 function getWeerUren(datum) {
   if (!weerCache || !weerCache.uren.length) return []
@@ -213,7 +210,64 @@ function getWeerUren(datum) {
 }
 
 // ===============================
-// EVENT STAPELPOSITIES BEREKENEN
+// BEZIER CURVE PUNTEN BEREKENEN
+// Geeft array van {x, y} punten voor pad en lijn
+// ===============================
+function berekenCurvePunten(dagUren, dagY, dagH, waardeFunc) {
+  const bodem = dagY + dagH
+  const punten = []
+  for (let i = 0; i < dagUren.length; i++) {
+    const x = tijdNaarX(dagUren[i].uur)
+    const intensiteit = waardeFunc(dagUren[i])
+    const y = bodem - intensiteit * dagH
+    punten.push({ x, y, intensiteit })
+  }
+  return { punten, bodem }
+}
+
+// ===============================
+// TEKEN GEVULDE CURVE MET LIJN
+// ===============================
+function tekenCurve(ctx, punten, bodem, eindX, vulKleur, lijnKleur) {
+  if (punten.length < 2) return
+
+  // Gevuld vlak
+  const vlakPad = new Path()
+  vlakPad.move(new Point(punten[0].x, bodem))
+  vlakPad.addLine(new Point(punten[0].x, punten[0].y))
+
+  for (let i = 1; i < punten.length; i++) {
+    const prev = punten[i-1]
+    const curr = punten[i]
+    const cpX = (prev.x + curr.x) / 2
+    vlakPad.addCurve(new Point(curr.x, curr.y), new Point(cpX, prev.y), new Point(cpX, curr.y))
+  }
+
+  vlakPad.addLine(new Point(eindX, bodem))
+  vlakPad.closeSubpath()
+  ctx.setFillColor(vulKleur)
+  ctx.addPath(vlakPad)
+  ctx.fillPath()
+
+  // Lijn bovenop — 100% opaque, dun
+  const lijnPad = new Path()
+  lijnPad.move(new Point(punten[0].x, punten[0].y))
+
+  for (let i = 1; i < punten.length; i++) {
+    const prev = punten[i-1]
+    const curr = punten[i]
+    const cpX = (prev.x + curr.x) / 2
+    lijnPad.addCurve(new Point(curr.x, curr.y), new Point(cpX, prev.y), new Point(cpX, curr.y))
+  }
+
+  ctx.setStrokeColor(lijnKleur)
+  ctx.setLineWidth(1.5)
+  ctx.addPath(lijnPad)
+  ctx.strokePath()
+}
+
+// ===============================
+// EVENT STAPELPOSITIES
 // ===============================
 function berekenStapels(events) {
   const gesorteerd = [...events].sort((a, b) => {
@@ -230,102 +284,83 @@ function berekenStapels(events) {
     while (rijEinden[rij] !== undefined && rijEinden[rij] > startT) rij++
     rijEinden[rij] = eindT
     event._rij = rij
-    event._totaalRijen = 0  // wordt later ingevuld
   }
 
   const maxRij = Math.max(0, ...gesorteerd.map(e => e._rij)) + 1
-  for (const event of gesorteerd) {
-    event._totaalRijen = maxRij
-  }
+  for (const event of gesorteerd) event._totaalRijen = maxRij
 
   return gesorteerd
 }
 
 // ===============================
-// TEKEN CONTEXT OPBOUWEN
+// TEKEN CONTEXT
 // ===============================
 const ctx = new DrawContext()
 ctx.size = new Size(W, H)
 ctx.opaque = true
 ctx.respectScreenScale = true
 
-// ===============================
-// LAAG 0: ACHTERGROND
-// ===============================
+// ACHTERGROND
 ctx.setFillColor(new Color("#16213e"))
 ctx.fillRect(new Rect(0, 0, W, H))
 
-// ===============================
 // TIJDAS
-// ===============================
 ctx.setFont(Font.systemFont(8))
 ctx.setTextColor(new Color("#ffffff", 0.4))
-
 for (let uur = START_UUR; uur <= EIND_UUR; uur += 2) {
   const x = tijdNaarX(uur)
-  const label = uur >= 24 ? "0" : `${uur}`
-  ctx.drawText(label, new Point(x - 4, PAD + 1))
-
-  // Verticale gridlijn
+  ctx.drawText(uur >= 24 ? "0" : `${uur}`, new Point(x - 4, PAD + 1))
   ctx.setStrokeColor(new Color("#ffffff", 0.07))
   ctx.setLineWidth(0.5)
   const path = new Path()
   path.move(new Point(x, PAD + HEADER_H))
-  path.addLine(new Point(x, H - PAD - LEGENDA_H))
+  path.addLine(new Point(x, H - PAD))
   ctx.addPath(path)
   ctx.strokePath()
 }
 
 // ===============================
-// LAAG 1: EVENT BLOKKEN (kleur, geen tekst)
+// VERZAMEL DATA PER DAG
 // ===============================
-const eventDataPerDag = []
-
+const dagData = []
 for (let dagIdx = 0; dagIdx < aantalDagen; dagIdx++) {
   const datum = new Date(beginDatum)
   datum.setDate(datum.getDate() + dagIdx)
   const dagY = dagNaarY(dagIdx)
   const isVandaag = isSameDay(datum, startOfToday)
+  const dagEvents = berekenStapels(getEventsVoorDag(datum))
+  const dagUren = getWeerUren(datum)
+  dagData.push({ datum, dagY, isVandaag, dagEvents, dagUren })
+}
 
+// ===============================
+// LAAG 1: EVENT BLOKKEN
+// ===============================
+for (const { dagY, dagEvents, isVandaag } of dagData) {
   // Dag achtergrond
   if (isVandaag) {
     ctx.setFillColor(new Color("#ffffff", 0.04))
     ctx.fillRect(new Rect(PAD + DAG_LABEL_W, dagY, tijdW, dagH))
   }
 
-  // Horizontale scheidingslijn
+  // Scheidingslijn
   ctx.setStrokeColor(new Color("#ffffff", 0.1))
   ctx.setLineWidth(0.5)
-  const dagLijn = new Path()
-  dagLijn.move(new Point(PAD, dagY))
-  dagLijn.addLine(new Point(W - PAD, dagY))
-  ctx.addPath(dagLijn)
+  const lijn = new Path()
+  lijn.move(new Point(PAD, dagY))
+  lijn.addLine(new Point(W - PAD, dagY))
+  ctx.addPath(lijn)
   ctx.strokePath()
 
-  // Events berekenen
-  const dagEvents = berekenStapels(getEventsVoorDag(datum))
-  eventDataPerDag.push({ datum, dagY, dagEvents, isVandaag })
-
   for (const event of dagEvents) {
-    const totaalRijen = event._totaalRijen
-    const rij = event._rij
-    const eventH = dagH / totaalRijen
-    const eventY = dagY + rij * eventH
+    const eventH = dagH / event._totaalRijen
+    const eventY = dagY + event._rij * eventH
 
-    let startU, eindU
-    if (event.isAllDay) {
-      startU = START_UUR
-      eindU = EIND_UUR
-    } else {
-      startU = event.startDate.getHours() + event.startDate.getMinutes() / 60
-      eindU = event.endDate.getHours() + event.endDate.getMinutes() / 60
-    }
-
+    let startU = event.isAllDay ? START_UUR : event.startDate.getHours() + event.startDate.getMinutes() / 60
+    let eindU = event.isAllDay ? EIND_UUR : event.endDate.getHours() + event.endDate.getMinutes() / 60
     const { x, breedte } = urenNaarX(startU, eindU)
-    const calColor = event.calendar.color
 
-    // Event blok
-    ctx.setFillColor(new Color(calColor.hex, 0.9))
+    ctx.setFillColor(new Color(event.calendar.color.hex, 0.9))
     ctx.fillRect(new Rect(x, eventY + 0.5, breedte - 0.5, eventH - 1))
   }
 }
@@ -333,113 +368,53 @@ for (let dagIdx = 0; dagIdx < aantalDagen; dagIdx++) {
 // ===============================
 // LAAG 2: REGEN OVERLAY
 // ===============================
-for (let dagIdx = 0; dagIdx < aantalDagen; dagIdx++) {
-  const { datum, dagY } = eventDataPerDag[dagIdx]
-  const dagUren = getWeerUren(datum)
+for (const { dagY, dagUren } of dagData) {
   if (dagUren.length < 2) continue
-
-  const regenPad = new Path()
-  const bodem = dagY + dagH
-
-  regenPad.move(new Point(tijdNaarX(dagUren[0].uur), bodem))
-
-  for (let i = 0; i < dagUren.length; i++) {
-    const x = tijdNaarX(dagUren[i].uur)
-    const intensiteit = Math.min(dagUren[i].mm / 4, 1)
-    const y = bodem - intensiteit * dagH
-
-    if (i === 0) {
-      regenPad.addLine(new Point(x, y))
-    } else {
-      const prevX = tijdNaarX(dagUren[i-1].uur)
-      const prevIntensiteit = Math.min(dagUren[i-1].mm / 4, 1)
-      const prevY = bodem - prevIntensiteit * dagH
-      const cpX = (prevX + x) / 2
-      regenPad.addCurve(new Point(x, y), new Point(cpX, prevY), new Point(cpX, y))
-    }
-  }
-
+  const { punten, bodem } = berekenCurvePunten(dagUren, dagY, dagH, p => Math.min(p.mm / 4, 1))
   const eindX = Math.min(tijdNaarX(dagUren[dagUren.length - 1].uur + 1), W - PAD)
-  regenPad.addLine(new Point(eindX, bodem))
-  regenPad.closeSubpath()
-
-  ctx.setFillColor(new Color("#4da6ff", REGEN_ALPHA))
-  ctx.addPath(regenPad)
-  ctx.fillPath()
+  tekenCurve(
+    ctx, punten, bodem, eindX,
+    new Color("#4da6ff", REGEN_ALPHA),
+    new Color("#7ec8ff", 0.9)
+  )
 }
 
 // ===============================
 // LAAG 3: ZON OVERLAY
 // ===============================
-for (let dagIdx = 0; dagIdx < aantalDagen; dagIdx++) {
-  const { datum, dagY } = eventDataPerDag[dagIdx]
-  const dagUren = getWeerUren(datum)
+for (const { dagY, dagUren } of dagData) {
   if (dagUren.length < 2) continue
-
-  const zonPad = new Path()
-  const bodem = dagY + dagH
-
-  zonPad.move(new Point(tijdNaarX(dagUren[0].uur), bodem))
-
-  for (let i = 0; i < dagUren.length; i++) {
-    const x = tijdNaarX(dagUren[i].uur)
-    const intensiteit = dagUren[i].zon
-    const y = bodem - intensiteit * dagH
-
-    if (i === 0) {
-      zonPad.addLine(new Point(x, y))
-    } else {
-      const prevX = tijdNaarX(dagUren[i-1].uur)
-      const prevIntensiteit = dagUren[i-1].zon
-      const prevY = bodem - prevIntensiteit * dagH
-      const cpX = (prevX + x) / 2
-      zonPad.addCurve(new Point(x, y), new Point(cpX, prevY), new Point(cpX, y))
-    }
-  }
-
+  const { punten, bodem } = berekenCurvePunten(dagUren, dagY, dagH, p => p.zon)
   const eindX = Math.min(tijdNaarX(dagUren[dagUren.length - 1].uur + 1), W - PAD)
-  zonPad.addLine(new Point(eindX, bodem))
-  zonPad.closeSubpath()
-
-  ctx.setFillColor(new Color("#ffd700", ZON_ALPHA))
-  ctx.addPath(zonPad)
-  ctx.fillPath()
+  tekenCurve(
+    ctx, punten, bodem, eindX,
+    new Color("#ffd700", ZON_ALPHA),
+    new Color("#ffe566", 0.9)
+  )
 }
 
 // ===============================
-// LAAG 4: DAGNAMEN + EVENT TEKST
+// LAAG 4: TEKST
 // ===============================
-for (const { datum, dagY, dagEvents, isVandaag } of eventDataPerDag) {
+for (const { datum, dagY, isVandaag, dagEvents } of dagData) {
   // Dagnaam
   const dagNamen = lang.daysShort ?? ["Zo","Ma","Di","Wo","Do","Vr","Za"]
   const dagNaam = dagNamen[datum.getDay()]
   const dagLabel = isVandaag ? `▶${dagNaam}` : dagNaam
-
   ctx.setFont(isVandaag ? Font.boldSystemFont(8) : Font.systemFont(8))
   ctx.setTextColor(isVandaag ? Color.white() : new Color("#ffffff", 0.5))
   ctx.drawText(dagLabel, new Point(PAD, dagY + dagH / 2 - 4))
 
   // Event teksten
   for (const event of dagEvents) {
-    const totaalRijen = event._totaalRijen
-    const rij = event._rij
-    const eventH = dagH / totaalRijen
-    const eventY = dagY + rij * eventH
-
-    let startU, eindU
-    if (event.isAllDay) {
-      startU = START_UUR
-      eindU = EIND_UUR
-    } else {
-      startU = event.startDate.getHours() + event.startDate.getMinutes() / 60
-      eindU = event.endDate.getHours() + event.endDate.getMinutes() / 60
-    }
-
+    const eventH = dagH / event._totaalRijen
+    const eventY = dagY + event._rij * eventH
+    let startU = event.isAllDay ? START_UUR : event.startDate.getHours() + event.startDate.getMinutes() / 60
+    let eindU = event.isAllDay ? EIND_UUR : event.endDate.getHours() + event.endDate.getMinutes() / 60
     const { x, breedte } = urenNaarX(startU, eindU)
 
     if (breedte > 14 && eventH > 9) {
-      const fontSize = Math.min(9, Math.max(7, eventH - 3))
-      ctx.setFont(Font.boldSystemFont(fontSize))
+      ctx.setFont(Font.boldSystemFont(Math.min(9, Math.max(7, eventH - 3))))
       ctx.setTextColor(Color.white())
       ctx.drawTextInRect(event.title, new Rect(x + 2, eventY + 1.5, breedte - 4, eventH - 3))
     }
@@ -447,22 +422,7 @@ for (const { datum, dagY, dagEvents, isVandaag } of eventDataPerDag) {
 }
 
 // ===============================
-// LEGENDA ONDERAAN
-// ===============================
-const legendaY = H - PAD - LEGENDA_H + 2
-ctx.setFont(Font.systemFont(8))
-ctx.setTextColor(new Color("#ffffff", 0.45))
-
-ctx.setFillColor(new Color("#4da6ff", 0.7))
-ctx.fillRect(new Rect(PAD + DAG_LABEL_W, legendaY + 2, 16, 6))
-ctx.drawText("regen", new Point(PAD + DAG_LABEL_W + 20, legendaY))
-
-ctx.setFillColor(new Color("#ffd700", 0.7))
-ctx.fillRect(new Rect(PAD + DAG_LABEL_W + 65, legendaY + 2, 16, 6))
-ctx.drawText("zon", new Point(PAD + DAG_LABEL_W + 85, legendaY))
-
-// ===============================
-// WIDGET SAMENSTELLEN
+// WIDGET
 // ===============================
 let widget = new ListWidget()
 widget.setPadding(0, 0, 0, 0)
@@ -496,7 +456,7 @@ function loadSettings() {
   const defaults = {
     calendars: [], startUur: 6, eindUur: 24,
     minDagen: 3, maxDagen: 7, begindag: "today",
-    regenAlpha: 35, zonAlpha: 30, rainApi: "openmeteo"
+    regenAlpha: 55, zonAlpha: 45, rainApi: "openmeteo"
   }
   if (!fm.fileExists(settingsPath)) return defaults
   try { return Object.assign(defaults, JSON.parse(fm.readString(settingsPath))) } catch { return defaults }
