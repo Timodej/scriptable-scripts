@@ -12,9 +12,44 @@
       "settings": []
     },
     {
+      "name": "Weekkalender-weer",
+      "file": "Weekkalender-weer.js",
+      "description": "Homescreen widget met weekoverzicht, gekleurde events en transparante regen/zon overlay.",
+      "version": "1.0",
+      "langFile": "timoLanguage-upcoming.json",
+      "settingsFile": "weekCalWidget-settings.json",
+      "settings": [
+        { "key": "language", "type": "language", "section": "Taal" },
+        { "key": "calendars", "type": "calendars", "section": "Agenda", "label": "labelCalendars" },
+        {
+          "key": "begindag", "type": "choice", "section": "Agenda", "label": "labelBegindag",
+          "choices": [
+            { "label": "Vandaag", "value": "today" },
+            { "label": "Maandag (begin week)", "value": "monday" }
+          ],
+          "default": "today"
+        },
+        { "key": "minDagen", "type": "number", "section": "Agenda", "label": "labelMinDagen", "default": 3, "min": 2, "max": 7 },
+        { "key": "maxDagen", "type": "number", "section": "Agenda", "label": "labelMaxDagen", "default": 7, "min": 3, "max": 7 },
+        { "key": "startUur", "type": "number", "section": "Tijdas", "label": "labelStartUur", "default": 6, "min": 0, "max": 12 },
+        { "key": "eindUur", "type": "number", "section": "Tijdas", "label": "labelEindUur", "default": 24, "min": 18, "max": 24 },
+        {
+          "key": "rainApi", "type": "choice", "section": "Weer", "label": "labelRainApi",
+          "choices": [
+            { "label": "Open-Meteo ð", "value": "openmeteo" },
+            { "label": "Buienradar ð³ð±", "value": "buienradar" },
+            { "label": "Combinatie ð", "value": "combined" }
+          ],
+          "default": "openmeteo"
+        },
+        { "key": "regenAlpha", "type": "number", "section": "Weer", "label": "labelRegenAlpha", "default": 40, "min": 10, "max": 90 },
+        { "key": "zonAlpha", "type": "number", "section": "Weer", "label": "labelZonAlpha", "default": 40, "min": 10, "max": 90 }
+      ]
+    },
+    {
       "name": "Lockscreen-weer-datum",
       "file": "Lockscreen-weer-datum.js",
-      "description": "Lockscreen widget die het weer toont op één regel. Temperatuur, weeremoji en regenvoorspelling.",
+      "description": "Lockscreen widget die het weer toont op Ã©Ã©n regel. Temperatuur, weeremoji en regenvoorspelling.",
       "version": "1.0",
       "langFile": "timoLanguage-weer.json",
       "settingsFile": "Lockscreen-weer-datum-settings.json",
@@ -33,16 +68,16 @@
         {
           "key": "rainApi", "type": "choice", "section": "Regen", "label": "labelRainApi",
           "choices": [
-            { "label": "Open-Meteo 🌍", "value": "openmeteo" },
-            { "label": "Buienradar 🇳🇱", "value": "buienradar" },
-            { "label": "Combinatie 🔀", "value": "combined" }
+            { "label": "Open-Meteo ð", "value": "openmeteo" },
+            { "label": "Buienradar ð³ð±", "value": "buienradar" },
+            { "label": "Combinatie ð", "value": "combined" }
           ],
           "default": "openmeteo"
         },
         {
           "key": "rainDisplay", "type": "choice", "section": "Regen", "label": "labelRainDisplay",
           "choices": [
-            { "label": "Wolkjes 🌧️🌧️🌧️", "value": "clouds" },
+            { "label": "Wolkjes ð§ï¸ð§ï¸ð§ï¸", "value": "clouds" },
             { "label": "Millimeter 2.4mm", "value": "mm" }
           ],
           "default": "clouds"
@@ -161,7 +196,7 @@
           "default": "date"
         },
         {
-          "key": "alignment", "type": "choice", "section": "Weergave", "label": "labelAlignment",
+          "key": "alignment", "type": "choice", "section": "Weergave", "label": "labelOpenApp",
           "choices": [
             { "label": "Links", "value": "left" },
             { "label": "Rechts", "value": "right" }
