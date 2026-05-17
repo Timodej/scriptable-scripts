@@ -289,8 +289,8 @@ for (let dagIdx = 0; dagIdx < aantalDagen; dagIdx++) {
         }
       }
       // Sluit het pad
-      const laatsteX = tijdNaarX(dagUren[dagUren.length - 1].uur + 1)
-      regenPad.addLine(new Point(Math.min(laatsteX, W - PAD), regenBodem))
+      const regenLaatsteX = tijdNaarX(dagUren[dagUren.length - 1].uur + 1)
+      regenPad.addLine(new Point(Math.min(regenLaatsteX, W - PAD), regenBodem))
       regenPad.closeSubpath()
 
       ctx.setFillColor(new Color("#4da6ff", REGEN_ALPHA))
@@ -319,8 +319,8 @@ for (let dagIdx = 0; dagIdx < aantalDagen; dagIdx++) {
           zonPad.addCurve(new Point(x, y), new Point(cpX, prevY), new Point(cpX, y))
         }
       }
-      const laatsteX = tijdNaarX(dagUren[dagUren.length - 1].uur + 1)
-      zonPad.addLine(new Point(Math.min(laatsteX, W - PAD), zonBodem))
+      const zonLaatsteX = tijdNaarX(dagUren[dagUren.length - 1].uur + 1)
+      zonPad.addLine(new Point(Math.min(zonLaatsteX, W - PAD), zonBodem))
       zonPad.closeSubpath()
 
       ctx.setFillColor(new Color("#ffd700", ZON_ALPHA))
