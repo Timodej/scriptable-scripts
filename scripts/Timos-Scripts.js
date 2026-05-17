@@ -55,19 +55,27 @@ function defaultLang() {
     andMore: "meer",
     sectionTaal: "Taal", sectionGedrag: "Gedrag", sectionAgenda: "Agenda",
     sectionWeergave: "Weergave", sectionRegen: "Regen", sectionOverig: "Overig",
+    sectionWeer: "Weer", sectionTijdas: "Tijdas", sectionAchtergrond: "Achtergrond",
     labelOpenApp: "App bij tikken", labelCalendars: "Kalenders",
     labelDaysAhead: "Dagen vooruit", labelListItems: "Max. items",
     labelFontSize: "Lettergrootte", labelShowEndTime: "Eindtijd tonen",
+    labelAlignment: "Uitlijning", labelDateFormat: "Datumweergave",
+    labelTextStyle: "Tekststijl",
+    labelBegindag: "Begindag", labelMinDagen: "Min. dagen", labelMaxDagen: "Max. dagen",
+    labelStartUur: "Begintijd", labelEindUur: "Eindtijd",
+    labelVoorAlpha: "Transparantie voorste laag (%)",
+    labelAchterAlpha: "Transparantie achterste laag (%)",
+    labelBgKleur: "Achtergrondkleur", labelBgAlpha: "Transparantie (%)",
     labelRegenDrempelKans: "Regendrempel kans (%)", labelRegenDrempelMm: "Regendrempel (mm/uur)",
     labelRegenMinimumMm: "Minimum bui (mm totaal)", labelDichtbijUren: "Dichtbij (uren)",
-    labelRainApi: "Regen API", labelRainDisplay: "Neerslagweergave",
-    labelRainTime: "Tijdweergave",
+    labelRainApi: "Regen API", labelRainDisplay: "Neerslagweergave", labelRainTime: "Tijdweergave",
     cacheWissen: "Cache wissen", cacheWissenOmschrijving: "Wist alle gecachte data",
     cacheWissenBevestig: "Alle gecachte data wordt verwijderd.", cacheGewist: "Cache gewist.",
     unsavedChanges: "Je hebt onopgeslagen wijzigingen.",
     saveChanges: "Opslaan", discardChanges: "Niet opslaan",
     managerUpdate: "Manager update beschikbaar",
-    restartManager: "Herstart Timo's Scripts om de update te activeren."
+    restartManager: "Herstart Timo's Scripts om de update te activeren.",
+    preview: "Preview"
   }
 }
 
@@ -101,8 +109,8 @@ function vertaalLabel(key) {
     "maxDagen": lang.labelMaxDagen ?? "Max. dagen",
     "startUur": lang.labelStartUur ?? "Begintijd",
     "eindUur": lang.labelEindUur ?? "Eindtijd",
-    "regenAlpha": lang.labelRegenAlpha ?? "Regen transparantie (%)",
-    "zonAlpha": lang.labelZonAlpha ?? "Zon transparantie (%)",
+    "voorAlpha": lang.labelVoorAlpha ?? "Transparantie voorste laag (%)",
+    "achterAlpha": lang.labelAchterAlpha ?? "Transparantie achterste laag (%)",
     "bgKleur": lang.labelBgKleur ?? "Achtergrondkleur",
     "bgAlpha": lang.labelBgAlpha ?? "Transparantie (%)",
     "textStyle": lang.labelTextStyle, "dateFormat": lang.labelDateFormat,
@@ -221,22 +229,19 @@ class ScriptManager {
     const headerRij = new UITableRow()
     headerRij.isHeader = true
     headerRij.height = 60
-    const headerTekst = headerRij.addText(
-      "Timo's Scripts",
-      `${this.index.scripts.length} ${lang.scriptsAvailable}`
-    )
+    const headerTekst = headerRij.addText("Timo's Scripts", `${this.index.scripts.length} ${lang.scriptsAvailable}`)
     headerTekst.titleFont = Font.boldSystemFont(16)
     headerTekst.subtitleFont = Font.systemFont(12)
     this.table.addRow(headerRij)
 
-    // Timo's Scripts zelf altijd bovenaan
+    // Timo's Scripts zelf bovenaan
     const zelf = this.scriptStates.find(s => s.isSelf)
     if (zelf) {
       this.voegSectieHeaderToe("Timo's Scripts")
       this.voegScriptRijToe(zelf)
     }
 
-    // Actieknoppen: cache wissen + update alle
+    // Actieknoppen
     const actieRij = new UITableRow()
     actieRij.height = 44
     actieRij.dismissOnSelect = false
@@ -250,7 +255,7 @@ class ScriptManager {
       bevestig.addAction(lang.cacheWissen)
       bevestig.addCancelAction(lang.cancel)
       if ((await bevestig.presentAlert()) === 0) {
-        for (const bestand of ["weerWidgetCache.json", "calendarWidgetShown.json", "weerDebug.txt"]) {
+        for (const bestand of ["weerWidgetCache.json", "weekCalWidgetCache.json", "calendarWidgetShown.json", "weerDebug.txt"]) {
           const pad = fm.joinPath(docsDir, bestand)
           if (fm.fileExists(pad)) fm.remove(pad)
         }
@@ -302,21 +307,17 @@ class ScriptManager {
     }
     this.table.addRow(refreshRij)
 
-    // Updates sectie (zonder zelf)
+    // Secties
     const metUpdate = this.scriptStates.filter(s => s.updateBeschikbaar && !s.isSelf)
     if (metUpdate.length) {
       this.voegSectieHeaderToe(`${lang.updatesAvailable} (${metUpdate.length})`)
       metUpdate.forEach(s => this.voegScriptRijToe(s))
     }
-
-    // Geinstalleerd sectie (zonder zelf)
     const geinstalleerd = this.scriptStates.filter(s => s.geinstalleerd && !s.updateBeschikbaar && !s.isSelf)
     if (geinstalleerd.length) {
       this.voegSectieHeaderToe(lang.installed)
       geinstalleerd.forEach(s => this.voegScriptRijToe(s))
     }
-
-    // Beschikbaar sectie (zonder zelf)
     const beschikbaar = this.scriptStates.filter(s => !s.geinstalleerd && !s.isSelf)
     if (beschikbaar.length) {
       this.voegSectieHeaderToe(lang.available)
@@ -343,15 +344,14 @@ class ScriptManager {
     const tekst = rij.addText(script.name, script.description)
     tekst.titleFont = Font.boldSystemFont(14)
     tekst.subtitleFont = Font.systemFont(12)
-    tekst.widthWeight = 55
+    tekst.widthWeight = 45
 
     if (script.updateBeschikbaar) {
       const knop = rij.addButton(lang.update)
       knop.titleColor = Color.red()
-      knop.widthWeight = 25
+      knop.widthWeight = 20
       knop.onTap = async () => {
         await this.installeerScript(script, true)
-        // Als het de manager zelf is, toon herstart melding
         if (script.isSelf) {
           const alert = new Alert()
           alert.title = lang.done
@@ -363,24 +363,56 @@ class ScriptManager {
     } else if (script.geinstalleerd) {
       const knop = rij.addButton("✓")
       knop.titleColor = new Color("#34c759")
-      knop.widthWeight = 25
+      knop.widthWeight = 20
       knop.onTap = async () => { await this.toonInfo(script) }
     } else {
       const knop = rij.addButton(lang.install)
       knop.titleColor = new Color("#007aff")
-      knop.widthWeight = 25
+      knop.widthWeight = 20
       knop.onTap = async () => { await this.installeerScript(script, false) }
     }
 
-    // Instellingen knop alleen voor niet-self scripts met settings
+    // Preview knop voor geïnstalleerde scripts (niet self)
+    if (script.geinstalleerd && !script.isSelf) {
+      const previewKnop = rij.addButton("▶️")
+      previewKnop.widthWeight = 17
+      previewKnop.onTap = async () => {
+        await this.previewScript(script)
+      }
+    }
+
+    // Instellingen knop
     if (script.geinstalleerd && !script.isSelf && script.settings && script.settings.length > 0) {
       const settingsKnop = rij.addButton("⚙️")
-      settingsKnop.widthWeight = 20
+      settingsKnop.widthWeight = 18
       settingsKnop.onTap = async () => { await this.toonInstellingenPagina(script) }
     }
 
     rij.onSelect = async () => { await this.toonInfo(script) }
     this.table.addRow(rij)
+  }
+
+  // ===============================
+  // PREVIEW SCRIPT
+  // ===============================
+  async previewScript(script) {
+    const pad = fm.joinPath(docsDir, script.file)
+    if (!fm.fileExists(pad)) return
+
+    // Voer het script uit met preview parameter
+    const scriptNaam = script.file.replace(".js", "")
+    const s = new Request(`scriptable:///run/${encodeURIComponent(scriptNaam)}`)
+    // Fallback: toon info dat preview via widget parameter werkt
+    const alert = new Alert()
+    alert.title = `▶️ ${script.name}`
+    alert.message = "Open het script in Scriptable om een preview te zien. Gebruik widget parameter: {\"action\": \"preview\"}"
+    alert.addAction("Open in Scriptable")
+    alert.addCancelAction(lang.cancel)
+    const keuze = await alert.presentAlert()
+    if (keuze === 0) {
+      const callback = new CallbackURL(`scriptable:///run/${encodeURIComponent(scriptNaam)}`)
+      callback.open()
+    }
   }
 
   // ===============================
@@ -397,7 +429,7 @@ class ScriptManager {
     const herlaad = () => {
       instellingenTable.removeAllRows()
 
-      // Header met opslaan knop
+      // Header
       const header = new UITableRow()
       header.isHeader = true
       header.height = 50
@@ -419,7 +451,6 @@ class ScriptManager {
       }
       instellingenTable.addRow(header)
 
-      // Groepeer per sectie
       const secties = {}
       for (const setting of script.settings) {
         const sectie = setting.section ?? "Overig"
@@ -559,7 +590,6 @@ class ScriptManager {
     herlaad()
     await instellingenTable.present(true)
 
-    // Onopgeslagen wijzigingen check
     if (gewijzigd) {
       const alert = new Alert()
       alert.title = lang.unsavedChanges
