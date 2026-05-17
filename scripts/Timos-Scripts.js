@@ -80,7 +80,8 @@ function vertaalSectie(sectie) {
   const map = {
     "Taal": lang.sectionTaal, "Gedrag": lang.sectionGedrag,
     "Agenda": lang.sectionAgenda, "Weergave": lang.sectionWeergave,
-    "Regen": lang.sectionRegen, "Overig": lang.sectionOverig
+    "Regen": lang.sectionRegen, "Overig": lang.sectionOverig,
+    "Weer": lang.sectionWeer ?? "Weer", "Tijdas": lang.sectionTijdas ?? "Tijdas"
   }
   return map[sectie] ?? sectie
 }
@@ -93,7 +94,16 @@ function vertaalLabel(key) {
     "regenDrempelKans": lang.labelRegenDrempelKans, "regenDrempelMm": lang.labelRegenDrempelMm,
     "regenMinimumMm": lang.labelRegenMinimumMm, "dichtbijUren": lang.labelDichtbijUren,
     "language": lang.language, "rainApi": lang.labelRainApi,
-    "rainDisplay": lang.labelRainDisplay, "rainTime": lang.labelRainTime
+    "rainDisplay": lang.labelRainDisplay, "rainTime": lang.labelRainTime,
+    "begindag": lang.labelBegindag ?? "Begindag",
+    "minDagen": lang.labelMinDagen ?? "Min. dagen",
+    "maxDagen": lang.labelMaxDagen ?? "Max. dagen",
+    "startUur": lang.labelStartUur ?? "Begintijd",
+    "eindUur": lang.labelEindUur ?? "Eindtijd",
+    "regenAlpha": lang.labelRegenAlpha ?? "Regen transparantie (%)",
+    "zonAlpha": lang.labelZonAlpha ?? "Zon transparantie (%)",
+    "textStyle": lang.labelTextStyle, "dateFormat": lang.labelDateFormat,
+    "alignment": lang.labelAlignment
   }
   return map[key] ?? key
 }
